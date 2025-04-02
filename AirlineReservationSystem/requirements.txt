@@ -1,0 +1,5 @@
+Flask
+Flask-Login
+Werkzeug
+datetime
+flask_wtf

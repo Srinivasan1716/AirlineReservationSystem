@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block title %}SkyWay Airlines - Book Your Next Adventure{% endblock %}
+
+{% block content %}
+<div class="hero-section bg-dark text-white p-5 rounded mb-5">
+    <div class="row align-items-center">
+        <div class="col-md-6">
+            <h1 class="display-4">Your journey begins with us</h1>
+            <p class="lead">Discover new horizons with SkyWay Airlines. Book your next adventure today.</p>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Find Your Flight</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{{ url_for('index') }}">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.origin.id }}" class="form-label">From</label>
+                                {{ form.origin(class="form-select") }}
+                                {% for error in form.origin.errors %}
+                                <div class="text-danger">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="{{ form.destination.id }}" class="form-label">To</label>
+                                {{ form.destination(class="form-select") }}
+                                {% for error in form.destination.errors %}
+                                <div class="text-danger">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.departure_date.id }}" class="form-label">Departure Date</label>
+                                {{ form.departure_date(class="form-control", type="date") }}
+                                {% for error in form.departure_date.errors %}
+                                <div class="text-danger">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="{{ form.passengers.id }}" class="form-label">Passengers</label>
+                                {{ form.passengers(class="form-control", min=1, max=9) }}
+                                {% for error in form.passengers.errors %}
+                                <div class="text-danger">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid">
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-5">
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-plane fa-3x mb-3 text-primary"></i>
+                <h5 class="card-title">Wide Network</h5>
+                <p class="card-text">Fly to over 100 destinations worldwide with our extensive network of routes.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-medal fa-3x mb-3 text-primary"></i>
+                <h5 class="card-title">Award-Winning Service</h5>
+                <p class="card-text">Experience our award-winning service and comfort on every journey.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-shield-alt fa-3x mb-3 text-primary"></i>
+                <h5 class="card-title">Safe Travel</h5>
+                <p class="card-text">Your safety is our top priority with rigorous safety protocols.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="popular-destinations mb-5">
+    <h2 class="text-center mb-4">Popular Destinations</h2>
+    <div class="row">
+        <div class="col-md-3 mb-4">
+            <div class="card destination-card">
+                <div class="card-body">
+                    <h5 class="card-title">New York</h5>
+                    <p class="card-text">Experience the vibrant life of the Big Apple.</p>
+                    <a href="#" class="btn btn-sm btn-outline-primary" 
+                       onclick="setDestination('JFK'); return false;">Find flights</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-4">
+            <div class="card destination-card">
+                <div class="card-body">
+                    <h5 class="card-title">London</h5>
+                    <p class="card-text">Discover the historic charm of England's capital.</p>
+                    <a href="#" class="btn btn-sm btn-outline-primary" 
+                       onclick="setDestination('LHR'); return false;">Find flights</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-4">
+            <div class="card destination-card">
+                <div class="card-body">
+                    <h5 class="card-title">Tokyo</h5>
+                    <p class="card-text">Immerse yourself in Japan's unique culture.</p>
+                    <a href="#" class="btn btn-sm btn-outline-primary" 
+                       onclick="setDestination('HND'); return false;">Find flights</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-4">
+            <div class="card destination-card">
+                <div class="card-body">
+                    <h5 class="card-title">Sydney</h5>
+                    <p class="card-text">Enjoy the beautiful beaches and iconic Opera House.</p>
+                    <a href="#" class="btn btn-sm btn-outline-primary" 
+                       onclick="setDestination('SYD'); return false;">Find flights</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="loyalty-program bg-dark text-white p-5 rounded">
+    <div class="row">
+        <div class="col-md-8">
+            <h2>Join Our Loyalty Program</h2>
+            <p class="lead">Earn points with every flight and enjoy exclusive benefits, upgrades, and free flights.</p>
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('profile') }}" class="btn btn-outline-light">View Your Points</a>
+            {% else %}
+            <a href="{{ url_for('register') }}" class="btn btn-outline-light">Sign Up Now</a>
+            {% endif %}
+        </div>
+        <div class="col-md-4 text-center">
+            <i class="fas fa-gift fa-5x"></i>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function setDestination(code) {
+        // Set the destination in the search form
+        document.getElementById('destination').value = code;
+        
+        // Scroll to the search form
+        document.querySelector('.card-header').scrollIntoView({ behavior: 'smooth' });
+    }
+    
+    // Set default date to tomorrow
+    document.addEventListener('DOMContentLoaded', function() {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        
+        const dateInput = document.getElementById('departure_date');
+        if (dateInput && !dateInput.value) {
+            dateInput.valueAsDate = tomorrow;
+        }
+    });
+</script>
+{% endblock %}

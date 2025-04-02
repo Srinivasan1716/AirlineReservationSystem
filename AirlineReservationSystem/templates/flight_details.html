@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+
+{% block title %}Flight Details | SkyWay Airlines{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Flight Details</h1>
+        <a href="{{ url_for('search_results') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Results
+        </a>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">{{ flight.flight_number }}</h5>
+                <span class="badge {{ 'bg-success' if flight.status == 'Scheduled' else 'bg-warning' if flight.status == 'Delayed' else 'bg-danger' }}">
+                    {{ flight.status }}
+                </span>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row align-items-center mb-4">
+                <div class="col-md-4">
+                    <div class="text-center">
+                        <div class="fs-3 fw-bold">{{ flight.departure_time.strftime('%H:%M') }}</div>
+                        <div class="fs-5">{{ flight.departure_time.strftime('%d %b %Y') }}</div>
+                        <div class="mt-2">{{ get_airport_name(flight.origin) }}</div>
+                    </div>
+                </div>
+                <div class="col-md-4 text-center">
+                    <div class="flight-path position-relative">
+                        <div class="flight-duration bg-dark px-2 rounded">{{ flight.get_duration() }}</div>
+                        <div class="flight-line"></div>
+                        <div class="flight-aircraft text-muted">{{ flight.aircraft_type }}</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="text-center">
+                        <div class="fs-3 fw-bold">{{ flight.arrival_time.strftime('%H:%M') }}</div>
+                        <div class="fs-5">{{ flight.arrival_time.strftime('%d %b %Y') }}</div>
+                        <div class="mt-2">{{ get_airport_name(flight.destination) }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <hr>
+
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <h5>Flight Information</h5>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Flight Number:</span>
+                            <span class="fw-bold">{{ flight.flight_number }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Aircraft Type:</span>
+                            <span>{{ flight.aircraft_type }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Flight Duration:</span>
+                            <span>{{ flight.get_duration() }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Seats Available:</span>
+                            <span class="{{ 'text-success' if flight.seats_available > 10 else 'text-warning' if flight.seats_available > 0 else 'text-danger' }}">
+                                {{ flight.seats_available }} / {{ flight.seats_total }}
+                            </span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h5>Price Information</h5>
+                    <div class="card">
+                        <div class="card-body">
+                            <h3 class="text-primary">{{ format_price(flight.get_current_price()) }}</h3>
+                            <p class="text-muted">Price per passenger</p>
+                            
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Base fare:</span>
+                                <span>{{ format_price(flight.base_price) }}</span>
+                            </div>
+                            {% if flight.get_current_price() != flight.base_price %}
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Demand adjustment:</span>
+                                <span>{{ format_price(flight.get_current_price() - flight.base_price) }}</span>
+                            </div>
+                            {% endif %}
+                            <hr>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Total price ({{ passengers }} passenger{{ 's' if passengers > 1 else '' }}):</span>
+                                <span class="fw-bold">{{ format_price(flight.get_current_price() * passengers) }}</span>
+                            </div>
+                            
+                            <div class="mt-3">
+                                {% if current_user.is_authenticated %}
+                                <a href="{{ url_for('book_flight', flight_id=flight.id, passengers=passengers) }}" class="btn btn-primary w-100">
+                                    Book Now
+                                </a>
+                                {% else %}
+                                <a href="{{ url_for('login', next=url_for('book_flight', flight_id=flight.id, passengers=passengers)) }}" class="btn btn-primary w-100">
+                                    Login to Book
+                                </a>
+                                <div class="text-center mt-2">
+                                    <small class="text-muted">
+                                        Don't have an account? <a href="{{ url_for('register') }}">Register here</a>
+                                    </small>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-12">
+                    <h5>Travel Information</h5>
+                    <div class="accordion" id="travelInfoAccordion">
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#baggageInfo">
+                                    Baggage Information
+                                </button>
+                            </h2>
+                            <div id="baggageInfo" class="accordion-collapse collapse" data-bs-parent="#travelInfoAccordion">
+                                <div class="accordion-body">
+                                    <p><strong>Carry-on Baggage:</strong> Each passenger is allowed one piece of carry-on baggage (up to 7 kg) and one personal item.</p>
+                                    <p><strong>Checked Baggage:</strong> Each passenger is allowed one piece of checked baggage (up to 23 kg) included in the fare.</p>
+                                    <p>Additional baggage can be purchased during the booking process.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#fareRules">
+                                    Fare Rules & Cancellation Policy
+                                </button>
+                            </h2>
+                            <div id="fareRules" class="accordion-collapse collapse" data-bs-parent="#travelInfoAccordion">
+                                <div class="accordion-body">
+                                    <p><strong>Changes:</strong> Changes are permitted with a fee of $50 plus any fare difference.</p>
+                                    <p><strong>Cancellations:</strong> Cancellations are permitted with a fee:</p>
+                                    <ul>
+                                        <li>More than 24 hours before departure: 80% refund</li>
+                                        <li>Less than 24 hours before departure: No refund</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#travelDocs">
+                                    Travel Documentation
+                                </button>
+                            </h2>
+                            <div id="travelDocs" class="accordion-collapse collapse" data-bs-parent="#travelInfoAccordion">
+                                <div class="accordion-body">
+                                    <p>All passengers must carry a valid government-issued photo ID for domestic flights.</p>
+                                    <p>For international flights, a valid passport is required with a minimum validity of 6 months beyond the return date.</p>
+                                    <p>Visa requirements are the responsibility of the passenger and should be arranged before travel.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+.flight-path {
+    padding: 20px 0;
+}
+.flight-line {
+    height: 2px;
+    background-color: var(--bs-primary);
+    position: relative;
+    margin: 15px 0;
+}
+.flight-line:before, .flight-line:after {
+    content: '';
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background-color: var(--bs-primary);
+    border-radius: 50%;
+    top: -4px;
+}
+.flight-line:before {
+    left: 0;
+}
+.flight-line:after {
+    right: 0;
+}
+.flight-duration {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+}
+.flight-aircraft {
+    font-size: 0.9rem;
+}
+</style>
+{% endblock %}

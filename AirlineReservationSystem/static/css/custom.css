@@ -1,0 +1,306 @@
+/* Custom CSS for SkyWay Airlines */
+
+/* General Styles */
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+main.container {
+    flex: 1;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+    margin-bottom: 1rem;
+}
+
+/* Cards */
+.card {
+    margin-bottom: 1.5rem;
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.card-header {
+    font-weight: 500;
+}
+
+/* Flight Search Results */
+.flight-line {
+    position: relative;
+}
+
+.flight-line hr {
+    margin: 10px 0;
+    border-top: 2px dashed;
+}
+
+.flight-duration, .flight-number {
+    position: absolute;
+    background-color: var(--bs-card-cap-bg);
+    padding: 0 10px;
+    font-size: 0.9rem;
+    z-index: 1;
+}
+
+.flight-duration {
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.flight-number {
+    bottom: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+/* Flight Path Visualization */
+.flight-path {
+    padding: 20px 0;
+}
+
+.flight-path .flight-line {
+    height: 2px;
+    background-color: var(--bs-primary);
+    position: relative;
+    margin: 15px 0;
+}
+
+.flight-path .flight-line:before, 
+.flight-path .flight-line:after {
+    content: '';
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background-color: var(--bs-primary);
+    border-radius: 50%;
+    top: -4px;
+}
+
+.flight-path .flight-line:before {
+    left: 0;
+}
+
+.flight-path .flight-line:after {
+    right: 0;
+}
+
+/* Seat Map Styling */
+.seat-map-container {
+    margin-bottom: 20px;
+}
+
+.seat-map-legend {
+    display: flex;
+    align-items: center;
+}
+
+.seat-legend-item {
+    display: flex;
+    align-items: center;
+    margin-right: 15px;
+}
+
+.seat-legend-item .seat {
+    margin-right: 5px;
+    cursor: default;
+}
+
+.seat-map {
+    overflow-x: auto;
+}
+
+.aircraft-outline {
+    border: 2px solid #666;
+    border-radius: 20px;
+    padding: 20px;
+    display: inline-block;
+    margin: 0 auto;
+}
+
+.seat-row {
+    display: flex;
+    margin-bottom: 10px;
+    align-items: center;
+}
+
+.row-number {
+    width: 30px;
+    text-align: center;
+    font-weight: bold;
+}
+
+.seats {
+    display: flex;
+}
+
+.seat {
+    width: 35px;
+    height: 35px;
+    margin: 0 5px;
+    border-radius: 5px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.aisle {
+    width: 20px;
+}
+
+.seat.available {
+    background-color: #495057;
+    color: white;
+}
+
+.seat.selected {
+    background-color: #0d6efd;
+    color: white;
+}
+
+.seat.unavailable {
+    background-color: #212529;
+    color: #495057;
+    cursor: not-allowed;
+}
+
+.cabin-header, .cabin-footer {
+    margin: 10px 0;
+}
+
+/* User Profile */
+.avatar-circle,
+.points-circle,
+.stats-circle {
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0 auto;
+}
+
+.avatar-circle {
+    width: 100px;
+    height: 100px;
+    background-color: var(--bs-primary);
+}
+
+.initials {
+    font-size: 40px;
+    color: white;
+    font-weight: bold;
+}
+
+.points-circle {
+    width: 120px;
+    height: 120px;
+    background-color: var(--bs-primary);
+}
+
+.points-value {
+    font-size: 30px;
+    color: white;
+    font-weight: bold;
+}
+
+.status-badge {
+    text-align: center;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-weight: bold;
+    color: #212529;
+    margin: 0 auto;
+    max-width: 150px;
+}
+
+.stats-circle {
+    width: 60px;
+    height: 60px;
+    background-color: var(--bs-primary);
+    font-size: 24px;
+    color: white;
+}
+
+/* Home Page */
+.hero-section {
+    background-color: var(--bs-dark);
+    background-image: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('https://images.unsplash.com/photo-1436491865332-7a61a109cc05?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80');
+    background-size: cover;
+    background-position: center;
+    padding: 3rem 0;
+    margin-bottom: 3rem;
+}
+
+.destination-card {
+    transition: transform 0.3s ease-in-out;
+}
+
+.destination-card:hover {
+    transform: translateY(-5px);
+}
+
+/* Loading Spinner */
+.loading-spinner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.loading-spinner .spinner-border {
+    width: 3rem;
+    height: 3rem;
+}
+
+/* Admin Dashboard */
+.admin-stats-card {
+    border-left: 4px solid var(--bs-primary);
+}
+
+.admin-stats-icon {
+    font-size: 2rem;
+    color: var(--bs-gray-600);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .flight-path {
+        padding: 10px 0;
+    }
+    
+    .seat {
+        width: 30px;
+        height: 30px;
+        margin: 0 3px;
+        font-size: 0.8rem;
+    }
+    
+    .avatar-circle, .points-circle {
+        width: 80px;
+        height: 80px;
+    }
+    
+    .initials {
+        font-size: 30px;
+    }
+    
+    .points-value {
+        font-size: 24px;
+    }
+    
+    .hero-section {
+        padding: 2rem 0;
+    }
+}

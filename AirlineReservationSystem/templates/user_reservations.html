@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}My Bookings | SkyWay Airlines{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1 class="mb-4">My Bookings</h1>
+    
+    {% if booking_details %}
+    <div class="list-group mb-4">
+        {% for item in booking_details %}
+        <div class="list-group-item list-group-item-action">
+            <div class="row">
+                <div class="col-md-9">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h5 class="mb-1">{{ item.flight.flight_number }}</h5>
+                        <span class="badge 
+                            {{ 'bg-success' if item.booking.status == 'Confirmed' else 
+                               'bg-danger' if item.booking.status == 'Cancelled' else 
+                               'bg-info' if item.booking.status == 'Checked-in' else 'bg-secondary' }}">
+                            {{ item.booking.status }}
+                        </span>
+                    </div>
+                    <div class="mb-2">
+                        <small class="text-muted">
+                            Booking Reference: <strong>{{ item.booking.booking_reference }}</strong> | 
+                            Booked on: {{ format_date(item.booking.booking_time) }}
+                        </small>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-4">
+                            <div>
+                                <strong>{{ format_time(item.flight.departure_time) }}</strong>
+                                <div>{{ item.flight.origin }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="flight-line position-relative">
+                                <hr>
+                                <small class="flight-date">{{ format_date(item.flight.departure_time) }}</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div>
+                                <strong>{{ format_time(item.flight.arrival_time) }}</strong>
+                                <div>{{ item.flight.destination }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <small>
+                            <i class="fas fa-users me-1"></i> {{ item.booking.passengers|length }} passenger(s) | 
+                            <i class="fas fa-chair me-1"></i> Seats: {{ item.booking.seat_number|join(', ') }}
+                        </small>
+                    </div>
+                </div>
+                <div class="col-md-3 text-end d-flex flex-column justify-content-center">
+                    <div class="mb-2">
+                        <span class="fw-bold">{{ format_price(item.booking.price_paid) }}</span>
+                    </div>
+                    <div class="btn-group">
+                        <a href="{{ url_for('booking_confirm', booking_id=item.booking.id) }}" class="btn btn-sm btn-outline-primary">
+                            View Details
+                        </a>
+                        {% if item.booking.status == 'Confirmed' and item.flight.departure_time > now %}
+                        <button type="button" class="btn btn-sm btn-outline-danger" 
+                                data-bs-toggle="modal" 
+                                data-bs-target="#cancelModal{{ item.booking.id }}">
+                            Cancel
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Cancel Modal -->
+        <div class="modal fade" id="cancelModal{{ item.booking.id }}" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Confirm Cancellation</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Are you sure you want to cancel your booking for flight {{ item.flight.flight_number }} from 
+                           {{ item.flight.origin }} to {{ item.flight.destination }} on {{ format_date(item.flight.departure_time) }}?</p>
+                        <p class="text-danger">This action cannot be undone.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <form action="{{ url_for('cancel_booking', booking_id=item.booking.id) }}" method="post">
+                            <button type="submit" class="btn btn-danger">Cancel Booking</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <h4 class="alert-heading">No bookings yet</h4>
+        <p>You haven't made any bookings yet. Start your journey by searching for flights!</p>
+        <hr>
+        <a href="{{ url_for('index') }}" class="btn btn-primary">Search Flights</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+.flight-line {
+    position: relative;
+}
+
+.flight-date {
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--bs-card-bg);
+    padding: 0 10px;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Add current date to the template for comparing with flight times
+    var now = new Date();
+</script>
+{% endblock %}

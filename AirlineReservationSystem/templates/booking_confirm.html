@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}Booking Confirmation | SkyWay Airlines{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="card border-success mb-4">
+        <div class="card-header bg-success text-white">
+            <h4 class="mb-0"><i class="fas fa-check-circle me-2"></i>Booking Confirmed</h4>
+        </div>
+        <div class="card-body">
+            <div class="text-center mb-4">
+                <h5>Thank you for your booking with SkyWay Airlines</h5>
+                <p class="lead">Your booking reference is: <strong>{{ booking.booking_reference }}</strong></p>
+                <p>A confirmation email has been sent to your registered email address.</p>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>Flight Details</h5>
+                    <ul class="list-group list-group-flush mb-4">
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Flight:</span>
+                            <span class="fw-bold">{{ flight.flight_number }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>From:</span>
+                            <span>{{ get_airport_name(flight.origin) }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>To:</span>
+                            <span>{{ get_airport_name(flight.destination) }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Departure:</span>
+                            <span>{{ format_datetime(flight.departure_time) }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Arrival:</span>
+                            <span>{{ format_datetime(flight.arrival_time) }}</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h5>Booking Details</h5>
+                    <ul class="list-group list-group-flush mb-4">
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Booking Reference:</span>
+                            <span class="fw-bold">{{ booking.booking_reference }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Status:</span>
+                            <span class="badge bg-success">{{ booking.status }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Booking Date:</span>
+                            <span>{{ booking.booking_time.strftime('%d %b %Y, %H:%M') }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Passengers:</span>
+                            <span>{{ booking.passengers|length }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Total Price:</span>
+                            <span class="fw-bold">{{ format_price(booking.price_paid) }}</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-12">
+                    <h5>Passenger Information</h5>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Passenger</th>
+                                    <th>Name</th>
+                                    <th>Seat</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for i in range(booking.passengers|length) %}
+                                <tr>
+                                    <td>{{ i + 1 }}</td>
+                                    <td>{{ booking.passengers[i].first_name }} {{ booking.passengers[i].last_name }}</td>
+                                    <td>{{ booking.seat_number[i] if i < booking.seat_number|length else 'Not assigned' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="alert alert-info">
+                        <h5><i class="fas fa-info-circle me-2"></i>Important Information</h5>
+                        <ul class="mb-0">
+                            <li>Please arrive at the airport at least 2 hours before your scheduled departure time.</li>
+                            <li>Carry a valid government-issued photo ID for domestic flights or passport for international flights.</li>
+                            <li>You can check in online 24 hours before your flight.</li>
+                            <li>Each passenger is allowed one piece of carry-on baggage (up to 7 kg) and one personal item.</li>
+                            <li>Each passenger is allowed one piece of checked baggage (up to 23 kg) included in the fare.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card-footer">
+            <div class="d-flex justify-content-between">
+                <a href="{{ url_for('my_bookings') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-list me-2"></i>View All Bookings
+                </a>
+                <a href="{{ url_for('index') }}" class="btn btn-primary">
+                    <i class="fas fa-home me-2"></i>Return to Home
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Need Help?</h5>
+        </div>
+        <div class="card-body">
+            <p>If you have any questions or need to make changes to your booking, please contact our customer service team:</p>
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <i class="fas fa-phone fa-2x me-3 text-primary"></i>
+                        <div>
+                            <h6 class="mb-0">Phone</h6>
+                            <p class="mb-0">+1 (800) SKY-WAYS</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <i class="fas fa-envelope fa-2x me-3 text-primary"></i>
+                        <div>
+                            <h6 class="mb-0">Email</h6>
+                            <p class="mb-0">support@skyway-airlines.com</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <i class="fas fa-comments fa-2x me-3 text-primary"></i>
+                        <div>
+                            <h6 class="mb-0">Live Chat</h6>
+                            <p class="mb-0">Available 24/7</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

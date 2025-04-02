@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Flight Search Results | SkyWay Airlines{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1 class="mb-3">Search Results</h1>
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="mb-2"><strong>From:</strong></div>
+                    <div>{{ get_airport_name(origin) }}</div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-2"><strong>To:</strong></div>
+                    <div>{{ get_airport_name(destination) }}</div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-2"><strong>Date:</strong></div>
+                    <div>{{ departure_date.strftime('%d %b %Y') }}</div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-2"><strong>Passengers:</strong></div>
+                    <div>{{ passengers }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mb-4">
+        <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>New Search
+        </a>
+    </div>
+    
+    {% if flights %}
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Available Flights ({{ flights|length }})</h5>
+        </div>
+        <div class="list-group list-group-flush">
+            {% for flight in flights %}
+            <div class="list-group-item">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <div class="row mb-2">
+                            <div class="col-md-4">
+                                <div class="fs-5 fw-bold">{{ flight.departure_time.strftime('%H:%M') }}</div>
+                                <div class="text-muted">{{ origin }}</div>
+                            </div>
+                            <div class="col-md-4 text-center">
+                                <div class="flight-line">
+                                    <span class="flight-duration">{{ flight.get_duration() }}</span>
+                                    <hr>
+                                    <span class="flight-number text-muted">{{ flight.flight_number }}</span>
+                                </div>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <div class="fs-5 fw-bold">{{ flight.arrival_time.strftime('%H:%M') }}</div>
+                                <div class="text-muted">{{ destination }}</div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="text-muted">{{ flight.aircraft_type }}</div>
+                            </div>
+                            <div class="col-md-6 text-end">
+                                <span class="badge bg-{{ 'success' if flight.seats_available > 10 else 'warning' if flight.seats_available > 0 else 'danger' }}">
+                                    {{ flight.seats_available }} seats left
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="fs-4 fw-bold text-primary mb-2">{{ format_price(flight.get_current_price()) }}</div>
+                        <a href="{{ url_for('flight_details', flight_id=flight.id, passengers=passengers) }}" class="btn btn-primary">
+                            View Details
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-warning">
+        <h4 class="alert-heading">No flights found</h4>
+        <p>We couldn't find any flights matching your search criteria. Please try different dates or destinations.</p>
+    </div>
+    <div class="suggestions mt-4">
+        <h5>Why not try:</h5>
+        <ul>
+            <li>Different dates</li>
+            <li>Different destinations</li>
+            <li>Reducing the number of passengers</li>
+        </ul>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+.flight-line {
+    position: relative;
+}
+.flight-line hr {
+    margin: 10px 0;
+}
+.flight-duration {
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--bs-card-cap-bg);
+    padding: 0 10px;
+    font-size: 0.9rem;
+}
+.flight-number {
+    position: absolute;
+    bottom: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--bs-card-cap-bg);
+    padding: 0 10px;
+    font-size: 0.9rem;
+}
+</style>
+{% endblock %}

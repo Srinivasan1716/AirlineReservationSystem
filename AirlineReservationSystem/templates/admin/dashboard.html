@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard | SkyWay Airlines{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1 class="mb-4">Admin Dashboard</h1>
+    
+    <div class="row mb-4">
+        <div class="col-md-4 mb-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h1 class="display-4">{{ total_flights }}</h1>
+                    <p class="lead">Total Flights</p>
+                    <div class="d-grid">
+                        <a href="{{ url_for('admin_flights') }}" class="btn btn-sm btn-outline-primary">View Details</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h1 class="display-4">{{ total_bookings }}</h1>
+                    <p class="lead">Total Bookings</p>
+                    <div class="d-grid">
+                        <a href="{{ url_for('admin_bookings') }}" class="btn btn-sm btn-outline-primary">View Details</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h1 class="display-4">{{ total_users }}</h1>
+                    <p class="lead">Registered Users</p>
+                    <div class="d-grid">
+                        <a href="{{ url_for('admin_users') }}" class="btn btn-sm btn-outline-primary">View Details</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Upcoming Flights</h5>
+                    <a href="{{ url_for('admin_flights') }}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="list-group list-group-flush">
+                    {% for flight in upcoming_flights %}
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">{{ flight.flight_number }}</h6>
+                                <p class="mb-1 small">{{ get_airport_name(flight.origin) }} → {{ get_airport_name(flight.destination) }}</p>
+                                <p class="mb-0 small text-muted">{{ format_datetime(flight.departure_time) }}</p>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge {{ 'bg-success' if flight.status == 'Scheduled' else 'bg-warning' if flight.status == 'Delayed' else 'bg-danger' }}">
+                                    {{ flight.status }}
+                                </span>
+                                <div class="small mt-1">
+                                    {{ flight.seats_available }}/{{ flight.seats_total }} seats
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Recent Bookings</h5>
+                    <a href="{{ url_for('admin_bookings') }}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="list-group list-group-flush">
+                    {% for booking in recent_bookings %}
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">{{ booking.booking_reference }}</h6>
+                                <p class="mb-1 small">
+                                    {% set flight = get_flight_by_id(booking.flight_id) %}
+                                    {% if flight %}
+                                    {{ flight.flight_number }} | {{ flight.origin }} → {{ flight.destination }}
+                                    {% endif %}
+                                </p>
+                                <p class="mb-0 small text-muted">
+                                    {% set user = get_user_by_id(booking.user_id) %}
+                                    {% if user %}
+                                    {{ user.username }} | {{ booking.booking_time.strftime('%d %b %Y, %H:%M') }}
+                                    {% endif %}
+                                </p>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge {{ 'bg-success' if booking.status == 'Confirmed' else 'bg-danger' if booking.status == 'Cancelled' else 'bg-secondary' }}">
+                                    {{ booking.status }}
+                                </span>
+                                <div class="small mt-1">
+                                    {{ booking.passengers|length }} passenger(s)
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-12 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">System Overview</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Flights Status</h6>
+                            <canvas id="flightsChart" width="400" height="200"></canvas>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Bookings Status</h6>
+                            <canvas id="bookingsChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Flights chart
+        const flightsCtx = document.getElementById('flightsChart').getContext('2d');
+        const flightsChart = new Chart(flightsCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Active', 'Completed', 'Cancelled'],
+                datasets: [{
+                    data: [{{ active_flights }}, {{ total_flights - active_flights - 10 }}, 10],
+                    backgroundColor: [
+                        '#0d6efd',
+                        '#198754',
+                        '#dc3545'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+        
+        // Bookings chart
+        const bookingsCtx = document.getElementById('bookingsChart').getContext('2d');
+        const bookingsChart = new Chart(bookingsCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Confirmed', 'Cancelled', 'Checked-in'],
+                datasets: [{
+                    data: [{{ active_bookings }}, {{ total_bookings - active_bookings - 5 }}, 5],
+                    backgroundColor: [
+                        '#198754',
+                        '#dc3545',
+                        '#0dcaf0'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

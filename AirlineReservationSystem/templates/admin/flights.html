@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Flights | Admin Dashboard | SkyWay Airlines{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Manage Flights</h1>
+        <div>
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary me-2">
+                <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+            </a>
+            <button type="button" class="btn btn-primary" disabled>
+                <i class="fas fa-plus me-2"></i>Add New Flight
+            </button>
+        </div>
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Filter Flights</h5>
+        </div>
+        <div class="card-body">
+            <form action="{{ url_for('admin_flights') }}" method="get" class="row g-3">
+                <div class="col-md-4">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <input type="text" class="form-control" name="search" value="{{ search }}" placeholder="Flight number, origin, or destination">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <select name="status" class="form-select">
+                        <option value="">All Statuses</option>
+                        <option value="Scheduled" {% if status == 'Scheduled' %}selected{% endif %}>Scheduled</option>
+                        <option value="Delayed" {% if status == 'Delayed' %}selected{% endif %}>Delayed</option>
+                        <option value="Cancelled" {% if status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+                        <option value="Completed" {% if status == 'Completed' %}selected{% endif %}>Completed</option>
+                    </select>
+                </div>
+                <div class="col-md-5 d-flex">
+                    <button type="submit" class="btn btn-primary me-2">Apply Filters</button>
+                    <a href="{{ url_for('admin_flights') }}" class="btn btn-outline-secondary">Clear Filters</a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Flight List</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Flight #</th>
+                        <th>Route</th>
+                        <th>Departure</th>
+                        <th>Arrival</th>
+                        <th>Aircraft</th>
+                        <th>Seats</th>
+                        <th>Price</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for flight in flights %}
+                    <tr>
+                        <td>{{ flight.flight_number }}</td>
+                        <td>{{ flight.origin }} → {{ flight.destination }}</td>
+                        <td>{{ format_datetime(flight.departure_time) }}</td>
+                        <td>{{ format_datetime(flight.arrival_time) }}</td>
+                        <td>{{ flight.aircraft_type }}</td>
+                        <td>{{ flight.seats_available }}/{{ flight.seats_total }}</td>
+                        <td>{{ format_price(flight.get_current_price()) }}</td>
+                        <td>
+                            <span class="badge {{ 'bg-success' if flight.status == 'Scheduled' else 'bg-warning' if flight.status == 'Delayed' else 'bg-danger' if flight.status == 'Cancelled' else 'bg-secondary' }}">
+                                {{ flight.status }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <button type="button" class="btn btn-outline-primary" title="Edit" disabled>
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-info" title="View Details" disabled>
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-danger" title="Cancel Flight" disabled>
+                                    <i class="fas fa-ban"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if not flights %}
+        <div class="card-body text-center py-5">
+            <p class="mb-0">No flights found matching your criteria.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Edit Flight Modal (placeholder for future implementation) -->
+<div class="modal fade" id="editFlightModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Flight</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-center">Flight editing functionality will be implemented in a future update.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" disabled>Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
