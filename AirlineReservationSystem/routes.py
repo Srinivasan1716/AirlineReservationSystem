@@ -13,6 +13,7 @@ from utils import (
 
 # Home page
 @app.route('/', methods=['GET', 'POST'])
+@login_required
 def index():
     form = FlightSearchForm()
     
@@ -248,11 +249,12 @@ def profile():
     
     return render_template('user_profile.html', user=user, bookings_count=bookings_count)
 
+
 # Login
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for('index'))
+        return redirect(url_for('index'))  # Redirect authenticated users to home
     
     form = LoginForm()
     
@@ -266,7 +268,7 @@ def login():
             login_user(user)
             next_page = request.args.get('next')
             flash('Logged in successfully', 'success')
-            return redirect(next_page or url_for('index'))
+            return redirect(next_page or url_for('index'))  # Ensure redirect to index
         else:
             flash('Invalid username or password', 'danger')
     
