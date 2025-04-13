@@ -90,6 +90,7 @@
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                         <form action="{{ url_for('cancel_booking', booking_id=item.booking.id) }}" method="post">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-danger">Cancel Booking</button>
                         </form>
                     </div>
