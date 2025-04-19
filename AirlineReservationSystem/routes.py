@@ -82,7 +82,9 @@ def flight_details(flight_id):
         format_price=format_price
     )
 
-# Book flight
+# routes.py (update book_flight)
+from datetime import date, timedelta
+
 @app.route('/flights/<int:flight_id>/book', methods=['GET', 'POST'])
 @login_required
 def book_flight(flight_id):
@@ -98,21 +100,16 @@ def book_flight(flight_id):
         flash(f'Not enough seats available. Only {flight.seats_available} seats left.', 'danger')
         return redirect(url_for('flight_details', flight_id=flight_id))
     
-    # Create form with the right number of passenger entries
     form = BookingForm()
     
-    # Adjust the number of passenger forms
     while len(form.passengers) < passengers:
         form.passengers.append_entry()
     
-    # Remove excess passenger forms
     while len(form.passengers) > passengers:
         form.passengers.pop_entry()
     
     if form.validate_on_submit():
-        # Process booking
         passenger_list = []
-        
         for i in range(passengers):
             passenger_data = form.passengers[i].data
             passenger = Passenger(
@@ -123,14 +120,10 @@ def book_flight(flight_id):
             )
             passenger_list.append(passenger)
         
-        # Process selected seats
         selected_seats = form.selected_seats.data.split(',') if form.selected_seats.data else []
-        
-        # Calculate total price
         price_per_passenger = flight.get_current_price()
         total_price = price_per_passenger * passengers
         
-        # Create booking
         booking = Booking(
             id=len(data.bookings) + 1,
             user_id=current_user.id,
@@ -142,20 +135,20 @@ def book_flight(flight_id):
             price_paid=total_price
         )
         
-        # Add booking to data
         data.add_booking(booking)
-        
-        # Add frequent flyer points
         user = data.get_user_by_id(current_user.id)
         if user:
-            # Points are 10% of the price paid
             user.frequent_flyer_points += int(total_price * 0.1)
         
         flash('Booking confirmed! Your booking reference is: ' + booking.booking_reference, 'success')
         return redirect(url_for('booking_confirm', booking_id=booking.id))
     
-    # Set flight_id in the form
     form.flight_id.data = flight_id
+    
+    # Date bounds for DOB
+    today = date.today()
+    max_dob = (today - timedelta(days=1)).isoformat()  # Yesterday: 2025-04-17
+    min_dob = (today - timedelta(days=120*365)).isoformat()  # 120 years ago: ~1905-04-18
     
     return render_template(
         'booking.html', 
@@ -165,7 +158,9 @@ def book_flight(flight_id):
         get_airport_name=data.get_airport_name,
         format_datetime=format_datetime,
         format_price=format_price,
-        seat_map=data.get_seat_map(flight_id)
+        seat_map=data.get_seat_map(flight_id),
+        max_dob=max_dob,
+        min_dob=min_dob
     )
 
 # Booking confirmation

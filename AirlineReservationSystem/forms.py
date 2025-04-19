@@ -60,6 +60,7 @@ class FlightSearchForm(FlaskForm):
         
         return True
 
+# forms.py
 from flask_wtf import FlaskForm
 from wtforms import StringField, DateField, FieldList, FormField
 from wtforms.validators import DataRequired, Length, ValidationError
@@ -73,9 +74,8 @@ class PassengerForm(FlaskForm):
     
     def validate_date_of_birth(self, date_of_birth):
         today = date.today()
-        if date_of_birth.data > today:
-            raise ValidationError('Date of birth cannot be in the future.')
-        # Prevent DOBs older than 120 years
+        if date_of_birth.data >= today:
+            raise ValidationError('Date of birth must be in the past.')
         min_date = today - timedelta(days=120*365)
         if date_of_birth.data < min_date:
             raise ValidationError('Date of birth cannot be more than 120 years in the past.')
