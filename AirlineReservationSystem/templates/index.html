@@ -62,6 +62,43 @@
     </div>
 </div>
 
+<!-- Travel Recommendation Modal -->
+<div class="modal fade" id="travelModal" tabindex="-1" aria-labelledby="travelModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="travelModalLabel">Travel Recommendations</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="recommendationForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-3">
+                        <label for="country" class="form-label">Country</label>
+                        <select class="form-select" id="country" name="country" required>
+                            <option value="India">India</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="budget" class="form-label">Budget (INR)</label>
+                        <input type="number" class="form-control" id="budget" name="budget" min="1000" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="travel_date" class="form-label">Travel Date</label>
+                        <input type="date" class="form-control" id="travel_date" name="travel_date" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="highlights" class="form-label">Interests (e.g., beaches, history)</label>
+                        <input type="text" class="form-control" id="highlights" name="highlights" placeholder="Optional">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Get Recommendations</button>
+                </form>
+                <div id="results" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row mb-5">
     <div class="col-md-4 mb-4">
         <div class="card h-100">
@@ -159,21 +196,55 @@
 {% block scripts %}
 <script>
     function setDestination(code) {
-        // Set the destination in the search form
         document.getElementById('destination').value = code;
-        
-        // Scroll to the search form
         document.querySelector('.card-header').scrollIntoView({ behavior: 'smooth' });
     }
     
-    // Set default date to tomorrow
     document.addEventListener('DOMContentLoaded', function() {
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
-        
         const dateInput = document.getElementById('departure_date');
         if (dateInput && !dateInput.value) {
             dateInput.valueAsDate = tomorrow;
+        }
+    });
+
+    document.getElementById("recommendationForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        try {
+            const response = await fetch("/recommendations", {
+                method: "POST",
+                headers: {
+                    "X-CSRF-Token": formData.get("csrf_token")
+                },
+                body: formData
+            });
+            const text = await response.text(); // Read the body once
+            let results;
+            try {
+                results = JSON.parse(text); // Attempt to parse as JSON
+            } catch (e) {
+                throw new Error(`Invalid JSON response: ${text.substring(0, 50)}...`);
+            }
+            const resultsDiv = document.getElementById("results");
+            if (response.ok) {
+                resultsDiv.innerHTML = results.length ? 
+                    results.map(r => `
+                        <div class="card mb-2">
+                            <div class="card-body">
+                                <h5 class="card-title">${r.Destination}, ${r.State}</h5>
+                                <p class="card-text">Budget: ₹${r.Min_Budget} - ₹${r.Max_Budget}</p>
+                                <p class="card-text">Highlights: ${r.Highlights}</p>
+                            </div>
+                        </div>
+                    `).join("") :
+                    "<p>No destinations match your criteria.</p>";
+            } else {
+                resultsDiv.innerHTML = `<p>Error: ${results.error || text}</p>`;
+            }
+        } catch (error) {
+            document.getElementById("results").innerHTML = `<p>Error: ${error.message}</p>`;
         }
     });
 </script>
