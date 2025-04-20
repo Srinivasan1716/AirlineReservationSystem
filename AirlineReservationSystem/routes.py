@@ -2,6 +2,7 @@ from flask import render_template, redirect, url_for, flash, request, session, j
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import login_user, logout_user, login_required, current_user
 from app import app
+from utils import send_booking_confirmation  # Import from utils
 from models import User, Flight, Booking, Passenger
 from forms import LoginForm, RegisterForm, FlightSearchForm, BookingForm, BookingSearchForm, AdminFlightForm
 import data
@@ -84,6 +85,7 @@ def flight_details(flight_id):
 
 # routes.py (update book_flight)
 from datetime import date, timedelta
+from app import mail  # Import mail object from app.py
 
 @app.route('/flights/<int:flight_id>/book', methods=['GET', 'POST'])
 @login_required
@@ -140,7 +142,12 @@ def book_flight(flight_id):
         if user:
             user.frequent_flyer_points += int(total_price * 0.1)
         
-        flash('Booking confirmed! Your booking reference is: ' + booking.booking_reference, 'success')
+        # Send email confirmation
+        from app import mail  # Ensure mail is available
+        if send_booking_confirmation(current_user, booking, mail):
+            flash('Booking confirmed! Your booking reference is: ' + booking.booking_reference + '. A confirmation email has been sent.', 'success')
+        else:
+            flash('Booking confirmed! Your booking reference is: ' + booking.booking_reference + '. Email sending failed.', 'warning')
         return redirect(url_for('booking_confirm', booking_id=booking.id))
     
     form.flight_id.data = flight_id

@@ -2,6 +2,8 @@ from datetime import datetime, timedelta
 import random
 import string
 from data import airports, get_airport_city
+from flask import current_app
+from flask_mail import Message
 
 def format_datetime(dt):
     """Format a datetime object to a user-friendly string"""
@@ -44,7 +46,7 @@ def format_price(price):
 def get_seat_class(seat):
     """Determine the class of a seat based on its row number"""
     if not seat:
-        return ""
+        return "Economy"
     
     # Extract row number from seat (e.g., "12A" -> 12)
     try:
@@ -89,3 +91,20 @@ def get_booking_status_badge_class(status):
         "Completed": "bg-dark"
     }
     return status_classes.get(status, "bg-secondary")
+
+def send_booking_confirmation(user, booking, mail):
+    """Send a booking confirmation email to the user"""
+    from data import get_flight_by_id
+    flight = get_flight_by_id(booking.flight_id)
+    msg = Message(
+        'Flight Booking Confirmation',
+        recipients=[user.email],
+        body=f"Dear {user.username},\nYour flight {flight.flight_number} on {format_datetime(flight.departure_time)} is confirmed. Reference: {booking.booking_reference}\nTotal Price: {format_price(booking.price_paid)}"
+    )
+    try:
+        with current_app.app_context():
+            mail.send(msg)
+        return True
+    except Exception as e:
+        current_app.logger.error(f"Email sending failed: {e}")
+        return False

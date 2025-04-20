@@ -39,7 +39,7 @@ def create_users():
     admin = User(
         id=1,
         username="admin",
-        email="admin@airline.com",
+        email="srinivasan2470047@ssn.edu.in",
         password_hash=generate_password_hash("admin123"),
         is_admin=True
     )

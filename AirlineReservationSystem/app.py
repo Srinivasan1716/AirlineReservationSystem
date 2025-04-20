@@ -3,8 +3,10 @@ import logging
 from flask import Flask, render_template, request, jsonify
 from flask_login import LoginManager
 from flask_wtf.csrf import CSRFProtect
+from flask_mail import Mail
 from datetime import datetime
 from recommend import get_recommendations
+from utils import send_booking_confirmation  # Import from utils
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -18,6 +20,15 @@ csrf = CSRFProtect(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+
+# Email configuration
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = 'balas07alab@gmail.com'  # Replace with your email
+app.config['MAIL_PASSWORD'] = 'dowm rjvc yxbx gyot'
+app.config['MAIL_DEFAULT_SENDER'] = 'balakumaran2470050@ssn.edu.in'
+mail = Mail(app)
 
 # Import routes after creating app to avoid circular imports
 from routes import *
