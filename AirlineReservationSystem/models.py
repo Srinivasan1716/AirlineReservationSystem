@@ -36,7 +36,6 @@ class Flight:
     
     def get_current_price(self):
         """Calculate current price based on seat availability"""
-        # Simple dynamic pricing: price increases as availability decreases
         availability_percentage = self.seats_available / self.seats_total
         if availability_percentage < 0.2:
             return self.base_price * 1.5  # 50% markup for low availability
@@ -59,12 +58,12 @@ class Booking:
     
     def _generate_booking_reference(self):
         """Generate a unique booking reference"""
-        # Using the first 6 characters of a UUID4 to create a booking reference
         return uuid.uuid4().hex[:6].upper()
 
 class Passenger:
-    def __init__(self, first_name, last_name, date_of_birth, passport_number=None):
+    def __init__(self, first_name, last_name, date_of_birth, passport_number=None, address=None):
         self.first_name = first_name
         self.last_name = last_name
         self.date_of_birth = date_of_birth
         self.passport_number = passport_number
+        self.address = address

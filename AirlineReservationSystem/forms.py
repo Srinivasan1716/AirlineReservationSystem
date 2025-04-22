@@ -1,7 +1,7 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField, SelectField, DateField, IntegerField, HiddenField, FormField, FieldList
 from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError
-from datetime import datetime, date
+from datetime import datetime, date, timedelta  # Added timedelta
 import data
 
 class LoginForm(FlaskForm):
@@ -35,7 +35,6 @@ class FlightSearchForm(FlaskForm):
     
     def __init__(self, *args, **kwargs):
         super(FlightSearchForm, self).__init__(*args, **kwargs)
-        # Populate airport choices
         airport_choices = [(code, f"{data.airports[code]['city']} ({code})") for code in data.airports]
         self.origin.choices = airport_choices
         self.destination.choices = airport_choices
@@ -60,17 +59,12 @@ class FlightSearchForm(FlaskForm):
         
         return True
 
-# forms.py
-from flask_wtf import FlaskForm
-from wtforms import StringField, DateField, FieldList, FormField
-from wtforms.validators import DataRequired, Length, ValidationError
-from datetime import date, timedelta
-
 class PassengerForm(FlaskForm):
     first_name = StringField('First Name', validators=[DataRequired(), Length(max=50)])
     last_name = StringField('Last Name', validators=[DataRequired(), Length(max=50)])
     date_of_birth = DateField('Date of Birth', validators=[DataRequired()], format='%Y-%m-%d')
     passport_number = StringField('Passport Number (Optional)', validators=[Length(max=20)])
+    address = StringField('Address', validators=[DataRequired(), Length(max=200)])
     
     def validate_date_of_birth(self, date_of_birth):
         today = date.today()
@@ -110,7 +104,6 @@ class AdminFlightForm(FlaskForm):
     
     def __init__(self, *args, **kwargs):
         super(AdminFlightForm, self).__init__(*args, **kwargs)
-        # Populate airport choices
         airport_choices = [(code, f"{data.airports[code]['city']} ({code})") for code in data.airports]
         self.origin.choices = airport_choices
         self.destination.choices = airport_choices

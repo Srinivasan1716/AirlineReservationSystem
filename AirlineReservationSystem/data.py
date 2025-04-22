@@ -19,11 +19,36 @@ airports = {
     "HND": {"name": "Haneda Airport", "city": "Tokyo", "country": "Japan"},
     "SYD": {"name": "Sydney Airport", "city": "Sydney", "country": "Australia"},
     "SIN": {"name": "Singapore Changi Airport", "city": "Singapore", "country": "Singapore"},
-    "FRA": {"name": "Frankfurt Airport", "city": "Frankfurt", "country": "Germany"}
+    "FRA": {"name": "Frankfurt Airport", "city": "Frankfurt", "country": "Germany"},
+
+    # Indian Airports
+    "DEL": {"name": "Indira Gandhi International Airport", "city": "Delhi", "country": "India"},
+    "BOM": {"name": "Chhatrapati Shivaji Maharaj International Airport", "city": "Mumbai", "country": "India"},
+    "MAA": {"name": "Chennai International Airport", "city": "Chennai", "country": "India"},
+    "BLR": {"name": "Kempegowda International Airport", "city": "Bengaluru", "country": "India"},
+    "HYD": {"name": "Rajiv Gandhi International Airport", "city": "Hyderabad", "country": "India"},
+    "CCU": {"name": "Netaji Subhas Chandra Bose International Airport", "city": "Kolkata", "country": "India"},
+    "GOI": {"name": "Goa International Airport", "city": "Goa", "country": "India"},
+    "AMD": {"name": "Sardar Vallabhbhai Patel International Airport", "city": "Ahmedabad", "country": "India"},
+    "COK": {"name": "Cochin International Airport", "city": "Kochi", "country": "India"},
+    "TRV": {"name": "Trivandrum International Airport", "city": "Thiruvananthapuram", "country": "India"}
 }
 
+
 # Aircraft types
-aircraft_types = ["Boeing 737", "Boeing 747", "Boeing 777", "Airbus A320", "Airbus A330", "Airbus A380"]
+aircraft_types = [
+    "Boeing 737",
+    "Boeing 747",
+    "Boeing 777",
+    "Airbus A320",
+    "Airbus A330",
+    "Airbus A380",
+    
+    # Indian-operated aircraft types
+    "ATR 72",               # Used by IndiGo, Alliance Air, SpiceJet (for regional routes)
+    "De Havilland Canada Dash 8 Q400"  # Used by SpiceJet for regional connectivity
+]
+
 
 def initialize_data():
     """Initialize the application with some data"""
@@ -60,12 +85,12 @@ def create_flights():
     airport_codes = list(airports.keys())
     today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     
-    # Create flights for next 30 days
-    for day in range(30):
+    # Create flights for next 45 days
+    for day in range(45):
         current_date = today + timedelta(days=day)
         
-        # Create 10-15 flights per day
-        for _ in range(random.randint(10, 15)):
+        # Create 10-30 flights per day
+        for _ in range(random.randint(10, 30)):
             # Select random origin and destination
             origin, destination = random.sample(airport_codes, 2)
             

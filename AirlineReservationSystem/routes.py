@@ -1,12 +1,12 @@
 from flask import render_template, redirect, url_for, flash, request, session, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import login_user, logout_user, login_required, current_user
-from app import app
-from utils import send_booking_confirmation  # Import from utils
+from app import app, mail  # Import both app and mail
+from utils import send_booking_confirmation
 from models import User, Flight, Booking, Passenger
 from forms import LoginForm, RegisterForm, FlightSearchForm, BookingForm, BookingSearchForm, AdminFlightForm
 import data
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date  # Added 'date' to the import
 from utils import (
     format_datetime, format_date, format_time, format_duration, 
     calculate_flight_duration, generate_booking_reference, format_price
@@ -24,7 +24,6 @@ def index():
         departure_date = form.departure_date.data
         passengers = form.passengers.data
         
-        # Store search parameters in session
         session['search_params'] = {
             'origin': origin,
             'destination': destination,
@@ -50,7 +49,6 @@ def search_results():
     departure_date = datetime.fromisoformat(search_params.get('departure_date')).date()
     passengers = search_params.get('passengers', 1)
     
-    # Search for matching flights
     flights = data.search_flights(origin, destination, departure_date, passengers)
     
     return render_template(
@@ -83,10 +81,6 @@ def flight_details(flight_id):
         format_price=format_price
     )
 
-# routes.py (update book_flight)
-from datetime import date, timedelta
-from app import mail  # Import mail object from app.py
-
 @app.route('/flights/<int:flight_id>/book', methods=['GET', 'POST'])
 @login_required
 def book_flight(flight_id):
@@ -118,7 +112,8 @@ def book_flight(flight_id):
                 first_name=passenger_data['first_name'],
                 last_name=passenger_data['last_name'],
                 date_of_birth=passenger_data['date_of_birth'],
-                passport_number=passenger_data['passport_number']
+                passport_number=passenger_data['passport_number'],
+                address=passenger_data['address']
             )
             passenger_list.append(passenger)
         
@@ -142,9 +137,7 @@ def book_flight(flight_id):
         if user:
             user.frequent_flyer_points += int(total_price * 0.1)
         
-        # Send email confirmation
-        from app import mail  # Ensure mail is available
-        if send_booking_confirmation(current_user, booking, mail):
+        if send_booking_confirmation(current_user, booking, mail):  # Use imported mail
             flash('Booking confirmed! Your booking reference is: ' + booking.booking_reference + '. A confirmation email has been sent.', 'success')
         else:
             flash('Booking confirmed! Your booking reference is: ' + booking.booking_reference + '. Email sending failed.', 'warning')
@@ -152,10 +145,9 @@ def book_flight(flight_id):
     
     form.flight_id.data = flight_id
     
-    # Date bounds for DOB
     today = date.today()
-    max_dob = (today - timedelta(days=1)).isoformat()  # Yesterday: 2025-04-17
-    min_dob = (today - timedelta(days=120*365)).isoformat()  # 120 years ago: ~1905-04-18
+    max_dob = (today - timedelta(days=1)).isoformat()
+    min_dob = (today - timedelta(days=120*365)).isoformat()
     
     return render_template(
         'booking.html', 
@@ -197,7 +189,6 @@ def booking_confirm(booking_id):
 def my_bookings():
     user_bookings = data.get_user_bookings(current_user.id)
     
-    # Get flight details for each booking
     booking_details = []
     for booking in user_bookings:
         flight = data.get_flight_by_id(booking.flight_id)
@@ -231,10 +222,8 @@ def cancel_booking(booking_id):
         flash('This booking is already cancelled', 'warning')
         return redirect(url_for('my_bookings'))
     
-    # Update booking status
     booking.status = "Cancelled"
     
-    # Return seats to available inventory
     flight = data.get_flight_by_id(booking.flight_id)
     if flight:
         flight.seats_available += len(booking.passengers)
@@ -251,12 +240,11 @@ def profile():
     
     return render_template('user_profile.html', user=user, bookings_count=bookings_count)
 
-
 # Login
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for('index'))  # Redirect authenticated users to home
+        return redirect(url_for('index'))
     
     form = LoginForm()
     
@@ -270,7 +258,7 @@ def login():
             login_user(user)
             next_page = request.args.get('next')
             flash('Logged in successfully', 'success')
-            return redirect(next_page or url_for('index'))  # Ensure redirect to index
+            return redirect(next_page or url_for('index'))
         else:
             flash('Invalid username or password', 'danger')
     
@@ -289,7 +277,6 @@ def register():
         email = form.email.data
         password = form.password.data
         
-        # Create new user
         user = User(
             id=len(data.users) + 1,
             username=username,
@@ -298,7 +285,6 @@ def register():
             is_admin=False
         )
         
-        # Add user to data
         data.add_user(user)
         
         flash('Account created successfully! You can now log in.', 'success')
@@ -322,20 +308,17 @@ def admin_dashboard():
         flash('Access denied', 'danger')
         return redirect(url_for('index'))
     
-    # Count statistics
     total_flights = len(data.flights)
     active_flights = sum(1 for f in data.flights if f.status != "Completed" and f.status != "Cancelled")
     total_bookings = len(data.bookings)
     active_bookings = sum(1 for b in data.bookings if b.status == "Confirmed")
     total_users = len(data.users)
     
-    # Get upcoming flights
     today = datetime.now()
     upcoming_flights = [f for f in data.flights if f.departure_time > today and f.status != "Cancelled"]
     upcoming_flights.sort(key=lambda f: f.departure_time)
-    upcoming_flights = upcoming_flights[:10]  # Take only the next 10 flights
+    upcoming_flights = upcoming_flights[:10]
     
-    # Get recent bookings
     recent_bookings = sorted(data.bookings, key=lambda b: b.booking_time, reverse=True)[:10]
     
     return render_template(
@@ -364,7 +347,6 @@ def admin_flights():
     search = request.args.get('search', '')
     status = request.args.get('status', '')
     
-    # Filter flights
     filtered_flights = data.flights
     
     if search:
@@ -378,7 +360,6 @@ def admin_flights():
     if status:
         filtered_flights = [f for f in filtered_flights if f.status == status]
     
-    # Sort by departure time
     filtered_flights.sort(key=lambda f: f.departure_time)
     
     return render_template(
@@ -401,7 +382,6 @@ def admin_bookings():
     search = request.args.get('search', '')
     status = request.args.get('status', '')
     
-    # Filter bookings
     filtered_bookings = data.bookings
     
     if search:
@@ -413,7 +393,6 @@ def admin_bookings():
     if status:
         filtered_bookings = [b for b in filtered_bookings if b.status == status]
     
-    # Sort by booking time (most recent first)
     filtered_bookings.sort(key=lambda b: b.booking_time, reverse=True)
     
     return render_template(
@@ -436,7 +415,6 @@ def admin_users():
     
     search = request.args.get('search', '')
     
-    # Filter users
     filtered_users = data.users
     
     if search:
@@ -452,7 +430,6 @@ def admin_users():
         search=search
     )
 
-# Error handlers
 @app.errorhandler(404)
 def page_not_found(e):
     return render_template('404.html'), 404
@@ -461,7 +438,6 @@ def page_not_found(e):
 def internal_server_error(e):
     return render_template('500.html'), 500
 
-# Add context processors
 @app.context_processor
 def utility_processor():
     return {

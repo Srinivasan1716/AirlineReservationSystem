@@ -76,7 +76,6 @@
                                     {% endfor %}
                                 </div>
                             </div>
-                            <!-- templates/booking.html (update DOB section) -->
                             <div class="row mb-3">
                                 <div class="col-md-6">
                                     <label for="{{ form.passengers[i].date_of_birth.id }}" class="form-label">Date of Birth</label>
@@ -90,6 +89,15 @@
                                     <label for="{{ form.passengers[i].passport_number.id }}" class="form-label">Passport Number (Optional)</label>
                                     {{ form.passengers[i].passport_number(class="form-control") }}
                                     {% for error in form.passengers[i].passport_number.errors %}
+                                    <div class="text-danger">{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-12">
+                                    <label for="{{ form.passengers[i].address.id }}" class="form-label">Address</label>
+                                    {{ form.passengers[i].address(class="form-control") }}
+                                    {% for error in form.passengers[i].address.errors %}
                                     <div class="text-danger">{{ error }}</div>
                                     {% endfor %}
                                 </div>
@@ -140,7 +148,8 @@
                                         <div class="seats">
                                             {% for seat in row %}
                                             <div class="seat 
-                                                {{ 'unavailable' if not seat.available else 'available' }}"
+                                                {{ 'unavailable' if not seat.available else 'available' }} 
+                                                {{ 'first-class' if seat.class == 'First Class' else 'business-class' if seat.class == 'Business Class' else 'economy-class' }}"
                                                 data-seat="{{ seat.seat }}"
                                                 {{ 'onclick="selectSeat(this)"' if seat.available else '' }}>
                                                 {{ seat.seat[-1] }}
@@ -295,6 +304,15 @@
     color: #495057;
     cursor: not-allowed;
 }
+.first-class.available {
+    background-color: #28a745; /* Green for First Class */
+}
+.business-class.available {
+    background-color: #17a2b8; /* Cyan for Business Class */
+}
+.economy-class.available {
+    background-color: #495057; /* Default gray for Economy */
+}
 .cabin-header, .cabin-footer {
     margin: 10px 0;
 }
@@ -311,33 +329,27 @@
         const seat = seatElement.dataset.seat;
         
         if (seatElement.classList.contains('selected')) {
-            // Deselect seat
             seatElement.classList.remove('selected');
             seatElement.classList.add('available');
             selectedSeats = selectedSeats.filter(s => s !== seat);
-        } else {
-            // Check if maximum seats already selected
+        } else if (seatElement.classList.contains('available')) {
             if (selectedSeats.length >= maxSelections) {
                 alert(`You can only select ${maxSelections} seat(s).`);
                 return;
             }
             
-            // Select seat
             seatElement.classList.remove('available');
             seatElement.classList.add('selected');
             selectedSeats.push(seat);
         }
         
-        // Update hidden input and display
         document.getElementById('selected_seats').value = selectedSeats.join(',');
         document.getElementById('selectedSeatsText').textContent = 
             selectedSeats.length > 0 ? selectedSeats.join(', ') : 'None';
             
-        // Update booking button state
         document.getElementById('bookingSubmit').disabled = selectedSeats.length !== maxSelections;
     }
     
-    // Form validation
     document.getElementById('bookingForm').addEventListener('submit', function(e) {
         if (selectedSeats.length !== maxSelections) {
             e.preventDefault();
