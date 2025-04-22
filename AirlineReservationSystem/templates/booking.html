@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Book Flight | SkyWay Airlines{% endblock %}
+{% block title %}Book Flight | ABC Airlines{% endblock %}
 
 {% block content %}
 <div class="mb-4">
@@ -230,7 +230,7 @@
                     <div class="card-body">
                         <p>If you need assistance with your booking, our customer service team is available 24/7.</p>
                         <p><i class="fas fa-phone me-2"></i> +1 (800) SKY-WAYS</p>
-                        <p><i class="fas fa-envelope me-2"></i> bookings@skyway-airlines.com</p>
+                        <p><i class="fas fa-envelope me-2"></i> bookings@ABC-airlines.com</p>
                     </div>
                 </div>
             </div>
@@ -397,7 +397,7 @@
                 "key": orderData.key_id,
                 "amount": orderData.amount,
                 "currency": orderData.currency,
-                "name": "SkyWay Airlines",
+                "name": "ABC Airlines",
                 "description": "Flight Booking Payment",
                 "order_id": orderData.order_id,
                 "handler": async function (response) {
