@@ -1,7 +1,7 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField, SelectField, DateField, IntegerField, HiddenField, FormField, FieldList
 from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError
-from datetime import datetime, date, timedelta  # Added timedelta
+from datetime import datetime, date, timedelta
 import data
 
 class LoginForm(FlaskForm):
@@ -64,7 +64,7 @@ class PassengerForm(FlaskForm):
     last_name = StringField('Last Name', validators=[DataRequired(), Length(max=50)])
     date_of_birth = DateField('Date of Birth', validators=[DataRequired()], format='%Y-%m-%d')
     passport_number = StringField('Passport Number (Optional)', validators=[Length(max=20)])
-    address = StringField('Address', validators=[DataRequired(), Length(max=200)])
+    address = StringField('Address (Optional)', validators=[Length(max=200)])
     
     def validate_date_of_birth(self, date_of_birth):
         today = date.today()

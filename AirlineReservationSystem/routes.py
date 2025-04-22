@@ -1,16 +1,32 @@
 from flask import render_template, redirect, url_for, flash, request, session, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import login_user, logout_user, login_required, current_user
-from app import app, mail  # Import both app and mail
+from app import app, mail
 from utils import send_booking_confirmation
 from models import User, Flight, Booking, Passenger
 from forms import LoginForm, RegisterForm, FlightSearchForm, BookingForm, BookingSearchForm, AdminFlightForm
 import data
-from datetime import datetime, timedelta, date  # Added 'date' to the import
+from datetime import datetime, timedelta, date
 from utils import (
-    format_datetime, format_date, format_time, format_duration, 
+    format_datetime, format_date, format_time, format_duration,
     calculate_flight_duration, generate_booking_reference, format_price
 )
+import razorpay
+import os
+from dotenv import load_dotenv
+import logging
+from flask_wtf.csrf import CSRFProtect
+
+# Load environment variables
+load_dotenv()
+RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID')
+RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET')
+
+# Initialize Razorpay client
+razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
 
 # Home page
 @app.route('/', methods=['GET', 'POST'])
@@ -81,7 +97,7 @@ def flight_details(flight_id):
         format_price=format_price
     )
 
-@app.route('/flights/<int:flight_id>/book', methods=['GET', 'POST'])
+@app.route('/flights/<int:flight_id>/book', methods=['GET'])
 @login_required
 def book_flight(flight_id):
     flight = data.get_flight_by_id(flight_id)
@@ -96,54 +112,13 @@ def book_flight(flight_id):
         flash(f'Not enough seats available. Only {flight.seats_available} seats left.', 'danger')
         return redirect(url_for('flight_details', flight_id=flight_id))
     
-    form = BookingForm()
+    form = BookingForm(flight_id=flight_id)
     
     while len(form.passengers) < passengers:
         form.passengers.append_entry()
     
     while len(form.passengers) > passengers:
         form.passengers.pop_entry()
-    
-    if form.validate_on_submit():
-        passenger_list = []
-        for i in range(passengers):
-            passenger_data = form.passengers[i].data
-            passenger = Passenger(
-                first_name=passenger_data['first_name'],
-                last_name=passenger_data['last_name'],
-                date_of_birth=passenger_data['date_of_birth'],
-                passport_number=passenger_data['passport_number'],
-                address=passenger_data['address']
-            )
-            passenger_list.append(passenger)
-        
-        selected_seats = form.selected_seats.data.split(',') if form.selected_seats.data else []
-        price_per_passenger = flight.get_current_price()
-        total_price = price_per_passenger * passengers
-        
-        booking = Booking(
-            id=len(data.bookings) + 1,
-            user_id=current_user.id,
-            flight_id=flight_id,
-            seat_number=selected_seats,
-            booking_time=datetime.now(),
-            status="Confirmed",
-            passengers=passenger_list,
-            price_paid=total_price
-        )
-        
-        data.add_booking(booking)
-        user = data.get_user_by_id(current_user.id)
-        if user:
-            user.frequent_flyer_points += int(total_price * 0.1)
-        
-        if send_booking_confirmation(current_user, booking, mail):  # Use imported mail
-            flash('Booking confirmed! Your booking reference is: ' + booking.booking_reference + '. A confirmation email has been sent.', 'success')
-        else:
-            flash('Booking confirmed! Your booking reference is: ' + booking.booking_reference + '. Email sending failed.', 'warning')
-        return redirect(url_for('booking_confirm', booking_id=booking.id))
-    
-    form.flight_id.data = flight_id
     
     today = date.today()
     max_dob = (today - timedelta(days=1)).isoformat()
@@ -161,6 +136,146 @@ def book_flight(flight_id):
         max_dob=max_dob,
         min_dob=min_dob
     )
+
+@app.route('/create_booking', methods=['POST'])
+@login_required
+def create_booking():
+    try:
+        form = BookingForm()
+        logging.debug(f"Form data keys received: {list(request.form.keys())}")
+        logging.debug(f"Form data values: {dict(request.form)}")
+        if not form.validate_on_submit():
+            errors = {}
+            for field, errs in form.errors.items():
+                errors[field] = errs
+            logging.error(f"Form validation failed: {errors}")
+            return jsonify({'error': 'Invalid form data', 'details': errors}), 400
+        
+        flight_id = int(form.flight_id.data)
+        flight = data.get_flight_by_id(flight_id)
+        if not flight:
+            logging.error(f"Flight not found: ID {flight_id}")
+            return jsonify({'error': 'Flight not found'}), 404
+        
+        passengers_count = int(request.form.get('passengers_count', 1))
+        if flight.seats_available < passengers_count:
+            logging.error(f"Not enough seats: {flight.seats_available} available, {passengers_count} requested")
+            return jsonify({'error': f'Not enough seats available. Only {flight.seats_available} seats left.'}), 400
+        
+        selected_seats = form.selected_seats.data.split(',') if form.selected_seats.data else []
+        if len(selected_seats) != passengers_count:
+            logging.error(f"Seat count mismatch: {len(selected_seats)} seats selected, {passengers_count} required")
+            return jsonify({'error': f'Please select exactly {passengers_count} seat(s)'}), 400
+        
+        passenger_list = []
+        for i in range(passengers_count):
+            passenger_data = form.passengers[i].data
+            logging.debug(f"Passenger {i+1} data: {passenger_data}")
+            passenger = Passenger(
+                first_name=passenger_data['first_name'],
+                last_name=passenger_data['last_name'],
+                date_of_birth=passenger_data['date_of_birth'],
+                passport_number=passenger_data['passport_number'],
+                address=passenger_data['address']
+            )
+            passenger_list.append(passenger)
+        
+        total_price = flight.get_current_price() * passengers_count
+        booking = Booking(
+            id=len(data.bookings) + 1,
+            user_id=current_user.id,
+            flight_id=flight_id,
+            seat_number=selected_seats,
+            booking_time=datetime.now(),
+            status="Pending",
+            passengers=passenger_list,
+            price_paid=total_price
+        )
+        
+        data.add_booking(booking)
+        logging.debug(f"Booking created: ID {booking.id}, User {current_user.id}, Flight {flight_id}")
+        return jsonify({'booking_id': booking.id})
+    except Exception as e:
+        logging.error(f"Error creating booking: {str(e)}")
+        return jsonify({'error': 'Failed to create booking', 'details': str(e)}), 500
+
+@app.route('/create_order', methods=['POST'])
+@login_required
+def create_order():
+    try:
+        booking_id = request.form.get('booking_id')
+        booking = data.get_booking_by_id(int(booking_id))
+        if not booking:
+            logging.error(f"Booking not found: ID {booking_id}")
+            return jsonify({'error': 'Booking not found'}), 404
+        
+        amount = int(float(request.form.get('amount')) * 100)  # Convert to paise
+        order_data = {
+            'amount': amount,
+            'currency': 'INR',
+            'receipt': f'booking_{booking_id}',
+            'payment_capture': 1
+        }
+        
+        order = razorpay_client.order.create(data=order_data)
+        logging.debug(f"Order created: ID {order['id']}, Booking {booking_id}")
+        return jsonify({
+            'order_id': order['id'],
+            'amount': order['amount'],
+            'currency': order['currency'],
+            'key_id': RAZORPAY_KEY_ID
+        })
+    except Exception as e:
+        logging.error(f"Error creating order: {str(e)}")
+        return jsonify({'error': 'Failed to create order', 'details': str(e)}), 500
+
+@app.route('/verify_payment', methods=['POST'])
+@login_required
+def verify_payment():
+    try:
+        payment_id = request.form.get('razorpay_payment_id')
+        order_id = request.form.get('razorpay_order_id')
+        signature = request.form.get('razorpay_signature')
+        booking_id = request.form.get('booking_id')
+        
+        booking = data.get_booking_by_id(int(booking_id))
+        if not booking:
+            logging.error(f"Booking not found: ID {booking_id}")
+            return jsonify({'error': 'Booking not found'}), 404
+        
+        params_dict = {
+            'razorpay_payment_id': payment_id,
+            'razorpay_order_id': order_id,
+            'razorpay_signature': signature
+        }
+        
+        razorpay_client.utility.verify_payment_signature(params_dict)
+        booking.status = "Confirmed"
+        booking.payment_id = payment_id
+        
+        user = data.get_user_by_id(current_user.id)
+        if user:
+            user.frequent_flyer_points += int(booking.price_paid * 0.1)
+        
+        if send_booking_confirmation(current_user, booking, mail):
+            flash('Booking confirmed! A confirmation email has been sent.', 'success')
+        else:
+            flash('Booking confirmed! Email sending failed.', 'warning')
+        
+        logging.debug(f"Payment verified: Booking {booking_id}, Payment ID {payment_id}")
+        return jsonify({'status': 'success'})
+    except razorpay.errors.SignatureVerificationError:
+        logging.error("Payment signature verification failed")
+        booking = data.get_booking_by_id(int(booking_id))
+        if booking:
+            booking.status = "Failed"
+        return render_template('payment_failed.html', error_message="Payment verification failed")
+    except Exception as e:
+        logging.error(f"Error verifying payment: {str(e)}")
+        booking = data.get_booking_by_id(int(booking_id))
+        if booking:
+            booking.status = "Failed"
+        return render_template('payment_failed.html', error_message="Payment processing failed")
 
 # Booking confirmation
 @app.route('/booking/<int:booking_id>/confirm')

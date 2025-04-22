@@ -15,8 +15,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize seat map interactions
     initializeSeatMap();
     
-    // Update the booking button state on page load
-    updateBookingButtonState();
+    // Update the pay button state on page load
+    updatePayButtonState();
 });
 
 /**
@@ -76,7 +76,7 @@ function selectSeat(seatElement) {
     
     // Update hidden input and display
     updateSelectedSeatsInput();
-    updateBookingButtonState();
+    updatePayButtonState();
 }
 
 /**
@@ -100,14 +100,15 @@ function updateSelectedSeatsInput() {
 }
 
 /**
- * Update the booking button state based on seat selection
+ * Update the pay button state based on seat selection
  */
-function updateBookingButtonState() {
-    const bookingSubmitButton = document.getElementById('bookingSubmit');
-    if (bookingSubmitButton) {
-        bookingSubmitButton.disabled = selectedSeats.length !== maxSelections;
+function updatePayButtonState() {
+    const payButton = document.getElementById('payButton');
+    if (payButton) {
+        payButton.disabled = selectedSeats.length !== maxSelections;
+        console.log("Selected seats:", selectedSeats, "Pay button enabled:", !payButton.disabled);
     } else {
-        console.error('Element with ID "bookingSubmit" not found.');
+        console.error('Element with ID "payButton" not found.');
     }
 }
 

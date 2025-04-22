@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Payment Failed | SkyWay Airlines{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="card border-danger mb-4">
+        <div class="card-header bg-danger text-white">
+            <h4 class="mb-0"><i class="fas fa-exclamation-circle me-2"></i>Payment Failed</h4>
+        </div>
+        <div class="card-body">
+            <p class="lead">We couldn’t process your payment. Please try again or contact support.</p>
+            <p>Error: {{ error_message }}</p>
+            <div class="d-flex justify-content-between">
+                <a href="{{ url_for('booking', destination=request.args.get('destination', '')) }}" class="btn btn-primary">
+                    <i class="fas fa-arrow-left me-2"></i>Try Again
+                </a>
+                <a href="mailto:bookings@skyway-airlines.com" class="btn btn-outline-secondary">
+                    <i class="fas fa-envelope me-2"></i>Contact Support
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

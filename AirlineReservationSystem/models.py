@@ -55,6 +55,7 @@ class Booking:
         self.status = status  # 'Confirmed', 'Cancelled', 'Checked-in'
         self.passengers = passengers  # List of passenger details
         self.price_paid = price_paid
+        self.payment_id = None  # Added for Razorpay
     
     def _generate_booking_reference(self):
         """Generate a unique booking reference"""
