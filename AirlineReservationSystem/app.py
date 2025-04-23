@@ -25,8 +25,8 @@ login_manager.login_view = 'login'
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'balas07alab@gmail.com'  # Replace with your email
-app.config['MAIL_PASSWORD'] = 'dowm rjvc yxbx gyot'
+app.config['MAIL_USERNAME'] = 'airwaysabc@gmail.com'
+app.config['MAIL_PASSWORD'] = 'pyef tixk gwkf padm'
 app.config['MAIL_DEFAULT_SENDER'] = 'balakumaran2470050@ssn.edu.in'
 mail = Mail(app)
 
