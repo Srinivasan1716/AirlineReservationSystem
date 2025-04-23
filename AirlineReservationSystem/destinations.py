@@ -28,5 +28,6 @@ def load_destinations():
             row["Min_Budget"] = int(row["Min_Budget"])
             row["Max_Budget"] = int(row["Max_Budget"])
             row["Best_Time_Months"] = parse_best_time(row["Best_Time"])
+            row["Country"] = row.get("Country", "")  # Handle missing Country column
             destinations.append(row)
     return destinations

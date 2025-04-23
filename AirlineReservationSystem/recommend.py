@@ -1,7 +1,7 @@
 from destinations import load_destinations
 
-def get_recommendations(budget, travel_month, highlights=None, country="India"):
-    """Get recommendations based on budget, time, highlights, and state."""
+def get_recommendations(budget, travel_month, highlights=None):
+    """Get recommendations based on budget, time, and highlights."""
     destinations = load_destinations()
     
     # Filter destinations
@@ -15,11 +15,11 @@ def get_recommendations(budget, travel_month, highlights=None, country="India"):
                 if not highlights or any(h.lower() in dest["Highlights"].lower() for h in highlights.split(",")):
                     filtered.append(dest)
     
-    # Sort by budget (ascending), then highlights match, then state
+    # Sort by budget (ascending), then highlights match, then destination
     filtered.sort(key=lambda x: (
         x["Min_Budget"], 
         -sum(h.lower() in x["Highlights"].lower() for h in (highlights.split(",") if highlights else [])), 
-        x["State"]
+        x["Destination"]
     ))
     
     return filtered

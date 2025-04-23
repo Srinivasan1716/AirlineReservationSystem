@@ -13,6 +13,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 # Create the app
 app = Flask(__name__)
+app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.secret_key = os.environ.get("SESSION_SECRET", os.urandom(24).hex())
 csrf = CSRFProtect(app)
 
@@ -54,7 +55,6 @@ data.initialize_data()
 @app.route("/recommendations", methods=["POST"])
 def get_travel_recommendations():
     data = request.form
-    country = data.get("country", "India")
     budget = float(data.get("budget", 0))
     travel_date = data.get("travel_date")  # Format: YYYY-MM-DD
     highlights = data.get("highlights", None)
@@ -63,7 +63,7 @@ def get_travel_recommendations():
     travel_month = datetime.strptime(travel_date, "%Y-%m-%d").strftime("%B")
     
     # Get recommendations
-    recommendations = get_recommendations(budget, travel_month, highlights, country)
+    recommendations = get_recommendations(budget, travel_month, highlights)
     return jsonify(recommendations)
 
 if __name__ == "__main__":
