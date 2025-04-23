@@ -41,7 +41,7 @@ def generate_booking_reference(length=6):
 
 def format_price(price):
     """Format a price to a user-friendly string"""
-    return f"${price:.2f}"
+    return f"\u20B9{price:.2f}"
 
 def get_seat_class(seat):
     """Determine the class of a seat based on its row number"""

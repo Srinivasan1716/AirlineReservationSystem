@@ -10,7 +10,7 @@
             <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary me-2">
                 <i class="fas fa-tachometer-alt me-2"></i>Dashboard
             </a>
-            <button type="button" class="btn btn-primary" disabled>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addFlightModal">
                 <i class="fas fa-plus me-2"></i>Add New Flight
             </button>
         </div>
@@ -119,6 +119,80 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 <button type="button" class="btn btn-primary" disabled>Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Flight Modal -->
+<div class="modal fade" id="addFlightModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New Flight</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" action="{{ url_for('add_flight') }}" id="addFlightForm">
+                    {{ form.hidden_tag() if form else '' }}
+                    <div class="mb-3">
+                        <label for="flight_number" class="form-label">Flight Number</label>
+                        <input type="text" class="form-control" id="flight_number" name="flight_number" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="origin" class="form-label">Origin</label>
+                        <select class="form-select" id="origin" name="origin" required>
+                            {% for code in airports %}
+                            <option value="{{ code }}">{{ airports[code]['city'] }} ({{ code }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="destination" class="form-label">Destination</label>
+                        <select class="form-select" id="destination" name="destination" required>
+                            {% for code in airports %}
+                            <option value="{{ code }}">{{ airports[code]['city'] }} ({{ code }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="departure_time" class="form-label">Departure Time</label>
+                        <input type="datetime-local" class="form-control" id="departure_time" name="departure_time" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="arrival_time" class="form-label">Arrival Time</label>
+                        <input type="datetime-local" class="form-control" id="arrival_time" name="arrival_time" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="aircraft_type" class="form-label">Aircraft Type</label>
+                        <select class="form-select" id="aircraft_type" name="aircraft_type" required>
+                            {% for aircraft in aircraft_types %}
+                            <option value="{{ aircraft }}">{{ aircraft }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="seats_total" class="form-label">Total Seats</label>
+                        <input type="number" class="form-control" id="seats_total" name="seats_total" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="price" class="form-label">Base Price (INR)</label>
+                        <input type="number" class="form-control" id="price" name="price" step="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="status" class="form-label">Status</label>
+                        <select class="form-select" id="status" name="status" required>
+                            <option value="Scheduled">Scheduled</option>
+                            <option value="Delayed">Delayed</option>
+                            <option value="Cancelled">Cancelled</option>
+                            <option value="Completed">Completed</option>
+                        </select>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary">Add Flight</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>

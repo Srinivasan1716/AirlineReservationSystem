@@ -561,3 +561,67 @@ def utility_processor():
         'format_time': format_time,
         'format_price': format_price
     }
+
+@app.route('/admin/add_flight', methods=['POST'])
+@login_required
+def add_flight():
+    if not current_user.is_admin:
+        flash('Access denied', 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        flight_number = request.form.get('flight_number')
+        origin = request.form.get('origin')
+        destination = request.form.get('destination')
+        departure_time = datetime.strptime(request.form.get('departure_time'), '%Y-%m-%dT%H:%M')
+        arrival_time = datetime.strptime(request.form.get('arrival_time'), '%Y-%m-%dT%H:%M')
+        aircraft_type = request.form.get('aircraft_type')
+        seats_total = int(request.form.get('seats_total'))
+        price = float(request.form.get('price'))
+        status = request.form.get('status')
+
+        # Validate inputs
+        if origin == destination:
+            flash('Origin and destination cannot be the same.', 'danger')
+            return redirect(url_for('admin_flights'))
+        
+        if departure_time >= arrival_time:
+            flash('Departure time must be before arrival time.', 'danger')
+            return redirect(url_for('admin_flights'))
+        
+        if seats_total <= 0:
+            flash('Total seats must be a positive number.', 'danger')
+            return redirect(url_for('admin_flights'))
+        
+        if price <= 0:
+            flash('Price must be a positive number.', 'danger')
+            return redirect(url_for('admin_flights'))
+        
+        # Create a new Flight object
+        new_flight = Flight(
+            id=len(data.flights) + 1,
+            flight_number=flight_number,
+            origin=origin,
+            destination=destination,
+            departure_time=departure_time,
+            arrival_time=arrival_time,
+            aircraft_type=aircraft_type,
+            seats_total=seats_total,
+            seats_available=seats_total,  # Initially, all seats are available
+            price=price,  # Price in INR, as per your previous request
+            status=status
+        )
+
+        # Add the flight to the flights list
+        data.flights.append(new_flight)
+        current_app.logger.info(f"Added flight: {new_flight.flight_number}, Total flights: {len(data.flights)}")
+
+        flash('Flight added successfully!', 'success')
+        return redirect(url_for('admin_flights'))
+    
+    except ValueError as e:
+        flash(f'Error adding flight: Invalid data format. {str(e)}', 'danger')
+        return redirect(url_for('admin_flights'))
+    except Exception as e:
+        flash(f'Error adding flight: {str(e)}', 'danger')
+        return redirect(url_for('admin_flights'))

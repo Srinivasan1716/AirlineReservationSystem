@@ -115,7 +115,7 @@ def create_flights():
                 aircraft_type=random.choice(aircraft_types),
                 seats_total=random.choice([120, 180, 240, 300, 360]),
                 seats_available=random.choice([120, 180, 240, 300, 360]),  # Initially all seats available
-                price=random.randint(200, 2000),  # Base price between $200 and $2000
+                price=random.randint(5000, 50000),  # Base price between $200 and $2000
                 status="Scheduled"
             )
             
