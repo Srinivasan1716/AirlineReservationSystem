@@ -123,11 +123,16 @@ def book_flight(flight_id):
     max_dob = (today - timedelta(days=1)).isoformat()
     min_dob = (today - timedelta(days=120*365)).isoformat()
     
+    total_price = flight.get_current_price() * passengers
+    
     return render_template(
         'booking.html', 
         form=form, 
         flight=flight, 
         passengers=passengers,
+        total_price=total_price,
+        discount=0,
+        final_price=total_price,
         get_airport_name=data.get_airport_name,
         format_datetime=format_datetime,
         format_price=format_price,
@@ -166,6 +171,22 @@ def create_booking():
             logging.error(f"Seat count mismatch: {len(selected_seats)} seats selected, {passengers_count} required")
             return jsonify({'error': f'Please select exactly {passengers_count} seat(s)'}), 400
         
+        # Calculate total price
+        total_price = flight.get_current_price() * passengers_count
+        
+        # Apply frequent flyer points discount
+        points_to_redeem = form.points_to_redeem.data or 0
+        available_points = current_user.frequent_flyer_points
+        max_points = min(available_points, total_price)  # Can't redeem more than the price or available points
+        points_to_redeem = min(points_to_redeem, max_points)
+        
+        # Calculate discount (1 point = ₹1 discount)
+        discount = points_to_redeem
+        final_price = total_price - discount
+        if final_price < 0:
+            final_price = 0  # Ensure price doesn't go negative
+        
+        # Create passenger list
         passenger_list = []
         for i in range(passengers_count):
             passenger_data = form.passengers[i].data
@@ -179,13 +200,13 @@ def create_booking():
             )
             passenger_list.append(passenger)
         
-        total_price = flight.get_current_price() * passengers_count
+        # Create the booking
         booking = Booking(
             user_id=current_user.id,
             flight_id=flight_id,
             booking_time=datetime.now(),
             status="Pending",
-            price_paid=total_price,
+            price_paid=final_price,
             booking_reference=generate_booking_reference(),
             passengers=passenger_list
         )
@@ -194,8 +215,19 @@ def create_booking():
             booking.seat_numbers.append(Seat(seat_number=seat))
         
         data.add_booking(booking)
-        logging.debug(f"Booking created: ID {booking.id}, User {current_user.id}, Flight {flight_id}")
-        return jsonify({'booking_id': booking.id})
+        
+        # Deduct the points from the user's account
+        if points_to_redeem > 0:
+            current_user.frequent_flyer_points -= points_to_redeem
+            db.session.commit()
+        
+        logging.debug(f"Booking created: ID {booking.id}, User {current_user.id}, Flight {flight_id}, Final Price: {final_price}")
+        return jsonify({
+            'booking_id': booking.id,
+            'total_price': total_price,
+            'discount': discount,
+            'final_price': final_price
+        })
     except Exception as e:
         logging.error(f"Error creating booking: {str(e)}")
         return jsonify({'error': 'Failed to create booking', 'details': str(e)}), 500
@@ -210,7 +242,14 @@ def create_order():
             logging.error(f"Booking not found: ID {booking_id}")
             return jsonify({'error': 'Booking not found'}), 404
         
-        amount = int(float(request.form.get('amount')) * 100)  # Convert to paise
+        final_price = float(request.form.get('final_price'))
+        if final_price <= 0:
+            # If final price is 0, confirm booking directly
+            booking.status = "Confirmed"
+            db.session.commit()
+            return jsonify({'status': 'confirmed', 'booking_id': booking_id})
+        
+        amount = int(final_price * 100)  # Convert to paise
         order_data = {
             'amount': amount,
             'currency': 'INR',
@@ -532,6 +571,7 @@ def admin_bookings():
         get_flight_by_id=get_flight_by_id,  # Use imported function
         format_datetime=format_datetime
     )
+
 # Admin users
 @app.route('/admin/users')
 @login_required

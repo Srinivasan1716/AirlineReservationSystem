@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField, SelectField, DateField, IntegerField, HiddenField, FormField, FieldList
-from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError
+from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError, NumberRange
 from datetime import datetime, date, timedelta
 import data
 
@@ -78,6 +78,7 @@ class BookingForm(FlaskForm):
     flight_id = HiddenField('Flight ID', validators=[DataRequired()])
     passengers = FieldList(FormField(PassengerForm), min_entries=1)
     selected_seats = HiddenField('Selected Seats')
+    points_to_redeem = IntegerField('Frequent Flyer Points to Redeem', default=0, validators=[NumberRange(min=0)])
     submit = SubmitField('Confirm Booking')
 
 class BookingSearchForm(FlaskForm):

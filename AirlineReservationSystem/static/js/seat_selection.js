@@ -31,17 +31,24 @@ function initializeSeatMap() {
         
         // Add click handler
         seat.addEventListener('click', function() {
+            if (window.isPaymentInProgress) {
+                console.log('Seat interaction disabled during payment.');
+                return;
+            }
+            console.log('Seat clicked:', seat.dataset.seat);
             selectSeat(this);
         });
 
         // Add hover effects
         seat.addEventListener('mouseenter', function() {
+            if (window.isPaymentInProgress) return;
             if (!this.classList.contains('selected')) {
                 this.style.backgroundColor = '#6c757d'; // Hover color (gray)
             }
         });
         
         seat.addEventListener('mouseleave', function() {
+            if (window.isPaymentInProgress) return;
             if (!this.classList.contains('selected')) {
                 this.style.backgroundColor = '#495057'; // Reset to original available color
             }
@@ -83,6 +90,7 @@ function selectSeat(seatElement) {
  * Update the hidden input field and display text with the current selected seats
  */
 function updateSelectedSeatsInput() {
+    console.log('Updating selected seats input...');
     const selectedSeatsInput = document.getElementById('selected_seats');
     const selectedSeatsText = document.getElementById('selectedSeatsText');
     
@@ -95,7 +103,8 @@ function updateSelectedSeatsInput() {
     if (selectedSeatsText) {
         selectedSeatsText.textContent = selectedSeats.length > 0 ? selectedSeats.join(', ') : 'None';
     } else {
-        console.error('Element with ID "selectedSeatsText" not found.');
+        console.error('Element with ID "selectedSeatsText" not found at this time.');
+        return;
     }
 }
 
@@ -103,6 +112,7 @@ function updateSelectedSeatsInput() {
  * Update the pay button state based on seat selection
  */
 function updatePayButtonState() {
+    console.log('Updating pay button state...');
     const payButton = document.getElementById('payButton');
     if (payButton) {
         payButton.disabled = selectedSeats.length !== maxSelections;
