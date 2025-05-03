@@ -80,7 +80,13 @@
                         </td>
                         <td>{{ format_datetime(booking.booking_time) }}</td>
                         <td>{{ booking.passengers|length }}</td>
-                        <td>{{ booking.seat_number|join(', ') }}</td>
+                        <td>
+                            {% if booking.seat_numbers %}
+                                {{ booking.seat_numbers | map(attribute='seat_number') | join(', ') }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
                         <td>{{ format_price(booking.price_paid) }}</td>
                         <td>
                             <span class="badge {{ 'bg-success' if booking.status == 'Confirmed' else 'bg-danger' if booking.status == 'Cancelled' else 'bg-info' }}">
@@ -243,7 +249,13 @@
                                     {% endif %}
                                 </td>
                                 <td>{{ booking.passengers[i].passport_number or 'Not provided' }}</td>
-                                <td>{{ booking.seat_number[i] if i < booking.seat_number|length else 'Not assigned' }}</td>
+                                <td>
+                                    {% if booking.seat_numbers and i < booking.seat_numbers|length %}
+                                        {{ booking.seat_numbers[i].seat_number }}
+                                    {% else %}
+                                        Not assigned
+                                    {% endif %}
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
