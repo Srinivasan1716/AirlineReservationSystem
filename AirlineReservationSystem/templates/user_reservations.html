@@ -50,7 +50,7 @@
                     <div>
                         <small>
                             <i class="fas fa-users me-1"></i> {{ item.booking.passengers|length }} passenger(s) | 
-                            <i class="fas fa-chair me-1"></i> Seats: {{ item.booking.seat_number|join(', ') }}
+                            <i class="fas fa-chair me-1"></i> Seats: {{ item.booking.seat_numbers|map(attribute='seat_number')|join(', ') }}
                         </small>
                     </div>
                 </div>
@@ -115,7 +115,6 @@
 .flight-line {
     position: relative;
 }
-
 .flight-date {
     position: absolute;
     top: -10px;

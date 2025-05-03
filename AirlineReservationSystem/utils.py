@@ -40,8 +40,9 @@ def generate_booking_reference(length=6):
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
 
 def format_price(price):
-    """Format a price to a user-friendly string"""
-    return f"\u20B9{price:.2f}"
+    if price is not None:
+        return f"\u20B9{price:.2f}"
+    return "Not available"
 
 def get_seat_class(seat):
     """Determine the class of a seat based on its row number"""

@@ -6,7 +6,13 @@ from flask_wtf.csrf import CSRFProtect
 from flask_mail import Mail
 from datetime import datetime
 from recommend import get_recommendations
-from utils import send_booking_confirmation  # Import from utils
+from utils import send_booking_confirmation, format_price
+from extensions import db
+import logging
+logging.debug("Initializing app.py")
+
+logging.debug("Registering format_price filter")
+
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -14,8 +20,14 @@ logging.basicConfig(level=logging.DEBUG)
 # Create the app
 app = Flask(__name__)
 app.config['TEMPLATES_AUTO_RELOAD'] = True
-app.secret_key = os.environ.get("SESSION_SECRET", os.urandom(24).hex())
+app.config['SECRET_KEY'] = os.environ.get("SESSION_SECRET", os.urandom(24).hex())
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///airlines.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 csrf = CSRFProtect(app)
+db.init_app(app)
+
+# Register Jinja2 filters
+app.jinja_env.filters['format_price'] = format_price
 
 # Configure login manager
 login_manager = LoginManager()
@@ -33,23 +45,15 @@ mail = Mail(app)
 
 # Import routes after creating app to avoid circular imports
 from routes import *
-from models import User
-
-# Register booking routes
-from booking import register_routes
-register_routes(app)
 
 @login_manager.user_loader
 def load_user(user_id):
-    from data import users
-    for user in users:
-        if user.id == int(user_id):
-            return user
-    return None
+    from models import User
+    return User.query.get(int(user_id))
 
-# Initialize in-memory data structures
-import data
-data.initialize_data()
+# Initialize database
+with app.app_context():
+    db.create_all()
 
 # Add recommendation route
 @app.route("/recommendations", methods=["POST"])
@@ -57,14 +61,20 @@ def get_travel_recommendations():
     data = request.form
     budget = float(data.get("budget", 0))
     travel_date = data.get("travel_date")  # Format: YYYY-MM-DD
-    highlights = data.get("highlights", None)
     
     # Get month from travel_date
     travel_month = datetime.strptime(travel_date, "%Y-%m-%d").strftime("%B")
     
     # Get recommendations
-    recommendations = get_recommendations(budget, travel_month, highlights)
+    recommendations = get_recommendations(budget, travel_month, data.get("highlights", None))
     return jsonify(recommendations)
+
+# Register booking routes
+from booking import register_routes
+register_routes(app)
+
+
+from routes import *
 
 if __name__ == "__main__":
     app.run(debug=True)

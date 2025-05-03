@@ -190,12 +190,12 @@
                     <div class="card-body">
                         <div class="d-flex justify-content-between mb-2">
                             <span>Base fare:</span>
-                            <span>{{ format_price(flight.base_price) }} × {{ passengers }}</span>
+                            <span>{{ format_price(flight.price) }} × {{ passengers }}</span>
                         </div>
-                        {% if flight.get_current_price() != flight.base_price %}
+                        {% if flight.get_current_price() != flight.price %}
                         <div class="d-flex justify-content-between mb-2">
                             <span>Demand adjustment:</span>
-                            <span>{{ format_price(flight.get_current_price() - flight.base_price) }} × {{ passengers }}</span>
+                            <span>{{ format_price(flight.get_current_price() - flight.price) }} × {{ passengers }}</span>
                         </div>
                         {% endif %}
                         <hr>

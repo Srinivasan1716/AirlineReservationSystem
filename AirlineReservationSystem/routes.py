@@ -1,21 +1,20 @@
 from flask import render_template, redirect, url_for, flash, request, session, jsonify
+from data import get_user_by_id, get_flight_by_id
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import login_user, logout_user, login_required, current_user
 from app import app, mail
-from utils import send_booking_confirmation
-from models import User, Flight, Booking, Passenger
+from extensions import db
+from utils import send_booking_confirmation, generate_booking_reference, format_datetime, format_date, format_time, format_price, calculate_flight_duration
+from models import User, Flight, Booking, Passenger, Seat
 from forms import LoginForm, RegisterForm, FlightSearchForm, BookingForm, BookingSearchForm, AdminFlightForm
-import data
-from datetime import datetime, timedelta, date
-from utils import (
-    format_datetime, format_date, format_time, format_duration,
-    calculate_flight_duration, generate_booking_reference, format_price
-)
 import razorpay
 import os
 from dotenv import load_dotenv
 import logging
-from flask_wtf.csrf import CSRFProtect
+from datetime import datetime, timedelta, date
+import data
+import logging
+logging.debug("Initializing app.py")
 
 # Load environment variables
 load_dotenv()
@@ -182,15 +181,17 @@ def create_booking():
         
         total_price = flight.get_current_price() * passengers_count
         booking = Booking(
-            id=len(data.bookings) + 1,
             user_id=current_user.id,
             flight_id=flight_id,
-            seat_number=selected_seats,
             booking_time=datetime.now(),
             status="Pending",
-            passengers=passenger_list,
-            price_paid=total_price
+            price_paid=total_price,
+            booking_reference=generate_booking_reference(),
+            passengers=passenger_list
         )
+        
+        for seat in selected_seats:
+            booking.seat_numbers.append(Seat(seat_number=seat))
         
         data.add_booking(booking)
         logging.debug(f"Booking created: ID {booking.id}, User {current_user.id}, Flight {flight_id}")
@@ -257,6 +258,8 @@ def verify_payment():
         if user:
             user.frequent_flyer_points += int(booking.price_paid * 0.1)
         
+        db.session.commit()
+        
         if send_booking_confirmation(current_user, booking, mail):
             flash('Booking confirmed! A confirmation email has been sent.', 'success')
         else:
@@ -269,12 +272,14 @@ def verify_payment():
         booking = data.get_booking_by_id(int(booking_id))
         if booking:
             booking.status = "Failed"
+            db.session.commit()
         return render_template('payment_failed.html', error_message="Payment verification failed")
     except Exception as e:
         logging.error(f"Error verifying payment: {str(e)}")
         booking = data.get_booking_by_id(int(booking_id))
         if booking:
             booking.status = "Failed"
+            db.session.commit()
         return render_template('payment_failed.html', error_message="Payment processing failed")
 
 # Booking confirmation
@@ -338,10 +343,11 @@ def cancel_booking(booking_id):
         return redirect(url_for('my_bookings'))
     
     booking.status = "Cancelled"
-    
     flight = data.get_flight_by_id(booking.flight_id)
     if flight:
         flight.seats_available += len(booking.passengers)
+    
+    db.session.commit()
     
     flash('Booking cancelled successfully', 'success')
     return redirect(url_for('my_bookings'))
@@ -393,7 +399,6 @@ def register():
         password = form.password.data
         
         user = User(
-            id=len(data.users) + 1,
             username=username,
             email=email,
             password_hash=generate_password_hash(password),
@@ -423,18 +428,19 @@ def admin_dashboard():
         flash('Access denied', 'danger')
         return redirect(url_for('index'))
     
-    total_flights = len(data.flights)
-    active_flights = sum(1 for f in data.flights if f.status != "Completed" and f.status != "Cancelled")
-    total_bookings = len(data.bookings)
-    active_bookings = sum(1 for b in data.bookings if b.status == "Confirmed")
-    total_users = len(data.users)
+    total_flights = Flight.query.count()
+    active_flights = Flight.query.filter(Flight.status.notin_(["Completed", "Cancelled"])).count()
+    total_bookings = Booking.query.count()
+    active_bookings = Booking.query.filter_by(status="Confirmed").count()
+    total_users = User.query.count()
     
     today = datetime.now()
-    upcoming_flights = [f for f in data.flights if f.departure_time > today and f.status != "Cancelled"]
-    upcoming_flights.sort(key=lambda f: f.departure_time)
-    upcoming_flights = upcoming_flights[:10]
+    upcoming_flights = Flight.query.filter(
+        Flight.departure_time > today,
+        Flight.status != "Cancelled"
+    ).order_by(Flight.departure_time).limit(10).all()
     
-    recent_bookings = sorted(data.bookings, key=lambda b: b.booking_time, reverse=True)[:10]
+    recent_bookings = Booking.query.order_by(Booking.booking_time.desc()).limit(10).all()
     
     return render_template(
         'admin/dashboard.html',
@@ -462,20 +468,22 @@ def admin_flights():
     search = request.args.get('search', '')
     status = request.args.get('status', '')
     
-    filtered_flights = data.flights
+    query = Flight.query
     
     if search:
-        filtered_flights = [
-            f for f in filtered_flights 
-            if search.upper() in f.flight_number 
-            or search.upper() in f.origin 
-            or search.upper() in f.destination
-        ]
+        search = search.upper()
+        query = query.filter(
+            db.or_(
+                Flight.flight_number.contains(search),
+                Flight.origin.contains(search),
+                Flight.destination.contains(search)
+            )
+        )
     
     if status:
-        filtered_flights = [f for f in filtered_flights if f.status == status]
+        query = query.filter_by(status=status)
     
-    filtered_flights.sort(key=lambda f: f.departure_time)
+    filtered_flights = query.order_by(Flight.departure_time).all()
     
     return render_template(
         'admin/flights.html',
@@ -487,7 +495,7 @@ def admin_flights():
     )
 
 # Admin bookings
-@app.route('/admin/bookings')
+@app.route('/admin/bookings', methods=['GET'])
 @login_required
 def admin_bookings():
     if not current_user.is_admin:
@@ -496,30 +504,34 @@ def admin_bookings():
     
     search = request.args.get('search', '')
     status = request.args.get('status', '')
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
     
-    filtered_bookings = data.bookings
+    query = Booking.query
     
     if search:
-        filtered_bookings = [
-            b for b in filtered_bookings 
-            if search.upper() in b.booking_reference
-        ]
+        query = query.filter(Booking.booking_reference.ilike(f'%{search}%'))
     
     if status:
-        filtered_bookings = [b for b in filtered_bookings if b.status == status]
+        query = query.filter_by(status=status)
     
-    filtered_bookings.sort(key=lambda b: b.booking_time, reverse=True)
+    query = query.order_by(Booking.booking_time.desc())
+    
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    bookings = pagination.items
+    
+    app.logger.debug(f"Retrieved {len(bookings)} bookings (total: {pagination.total})")
     
     return render_template(
         'admin/bookings.html',
-        bookings=filtered_bookings,
-        get_user_by_id=data.get_user_by_id,
-        get_flight_by_id=data.get_flight_by_id,
-        format_datetime=format_datetime,
+        bookings=bookings,
+        pagination=pagination,
         search=search,
-        status=status
+        status=status,
+        get_user_by_id=get_user_by_id,  # Use imported function
+        get_flight_by_id=get_flight_by_id,  # Use imported function
+        format_datetime=format_datetime
     )
-
 # Admin users
 @app.route('/admin/users')
 @login_required
@@ -530,14 +542,18 @@ def admin_users():
     
     search = request.args.get('search', '')
     
-    filtered_users = data.users
+    query = User.query
     
     if search:
-        filtered_users = [
-            u for u in filtered_users 
-            if search.lower() in u.username.lower() 
-            or search.lower() in u.email.lower()
-        ]
+        search = search.lower()
+        query = query.filter(
+            db.or_(
+                User.username.ilike(f'%{search}%'),
+                User.email.ilike(f'%{search}%')
+            )
+        )
+    
+    filtered_users = query.all()
     
     return render_template(
         'admin/users.html',
@@ -599,7 +615,6 @@ def add_flight():
         
         # Create a new Flight object
         new_flight = Flight(
-            id=len(data.flights) + 1,
             flight_number=flight_number,
             origin=origin,
             destination=destination,
@@ -607,14 +622,14 @@ def add_flight():
             arrival_time=arrival_time,
             aircraft_type=aircraft_type,
             seats_total=seats_total,
-            seats_available=seats_total,  # Initially, all seats are available
-            price=price,  # Price in INR, as per your previous request
+            seats_available=seats_total,
+            price=price,
             status=status
         )
 
-        # Add the flight to the flights list
-        data.flights.append(new_flight)
-        current_app.logger.info(f"Added flight: {new_flight.flight_number}, Total flights: {len(data.flights)}")
+        db.session.add(new_flight)
+        db.session.commit()
+        app.logger.info(f"Added flight: {new_flight.flight_number}, Total flights: {Flight.query.count()}")
 
         flash('Flight added successfully!', 'success')
         return redirect(url_for('admin_flights'))
