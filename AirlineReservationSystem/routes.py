@@ -4,7 +4,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import login_user, logout_user, login_required, current_user
 from app import app, mail
 from extensions import db
-from utils import send_booking_confirmation, generate_booking_reference, format_datetime, format_date, format_time, format_price, calculate_flight_duration
+from utils import send_booking_confirmation, send_booking_cancellation_email, generate_booking_reference, format_datetime, format_date, format_time, format_price, calculate_flight_duration, get_flight_status_badge_class  # Added get_flight_status_badge_class
 from models import User, Flight, Booking, Passenger, Seat
 from forms import LoginForm, RegisterForm, FlightSearchForm, BookingForm, BookingSearchForm, AdminFlightForm
 import razorpay
@@ -90,7 +90,7 @@ def flight_details(flight_id):
         'flight_details.html', 
         flight=flight, 
         passengers=passengers,
-        get_airport_name=data.get_airport_name,  # Fixed typo: was 'ointedget_airport_name'
+        get_airport_name=data.get_airport_name,
         format_datetime=format_datetime,
         format_price=format_price
     )
@@ -535,7 +535,8 @@ def admin_flights():
         status=status,
         form=form,
         airports=data.airports,
-        aircraft_types=data.aircraft_types
+        aircraft_types=data.aircraft_types,
+        get_flight_status_badge_class=get_flight_status_badge_class  # Added
     )
 
 # Admin add flight
@@ -567,19 +568,19 @@ def add_flight():
             # Validate inputs
             if new_flight.origin == new_flight.destination:
                 flash('Origin and destination cannot be the same.', 'danger')
-                return render_template('admin/flights.html', form=form, flights=Flight.query.all(), get_airport_name=data.get_airport_name, format_datetime=format_datetime, airports=data.airports, aircraft_types=data.aircraft_types)
+                return render_template('admin/flights.html', form=form, flights=Flight.query.all(), get_airport_name=data.get_airport_name, format_datetime=format_datetime, airports=data.airports, aircraft_types=data.aircraft_types, get_flight_status_badge_class=get_flight_status_badge_class)
             
             if new_flight.departure_time >= new_flight.arrival_time:
                 flash('Departure time must be before arrival time.', 'danger')
-                return render_template('admin/flights.html', form=form, flights=Flight.query.all(), get_airport_name=data.get_airport_name, format_datetime=format_datetime, airports=data.airports, aircraft_types=data.aircraft_types)
+                return render_template('admin/flights.html', form=form, flights=Flight.query.all(), get_airport_name=data.get_airport_name, format_datetime=format_datetime, airports=data.airports, aircraft_types=data.aircraft_types, get_flight_status_badge_class=get_flight_status_badge_class)
             
             if new_flight.seats_total <= 0:
                 flash('Total seats must be a positive number.', 'danger')
-                return render_template('admin/flights.html', form=form, flights=Flight.query.all(), get_airport_name=data.get_airport_name, format_datetime=format_datetime, airports=data.airports, aircraft_types=data.aircraft_types)
+                return render_template('admin/flights.html', form=form, flights=Flight.query.all(), get_airport_name=data.get_airport_name, format_datetime=format_datetime, airports=data.airports, aircraft_types=data.aircraft_types, get_flight_status_badge_class=get_flight_status_badge_class)
             
             if new_flight.price <= 0:
                 flash('Price must be a positive number.', 'danger')
-                return render_template('admin/flights.html', form=form, flights=Flight.query.all(), get_airport_name=data.get_airport_name, format_datetime=format_datetime, airports=data.airports, aircraft_types=data.aircraft_types)
+                return render_template('admin/flights.html', form=form, flights=Flight.query.all(), get_airport_name=data.get_airport_name, format_datetime=format_datetime, airports=data.airports, aircraft_types=data.aircraft_types, get_flight_status_badge_class=get_flight_status_badge_class)
             
             db.session.add(new_flight)
             db.session.commit()
@@ -590,15 +591,13 @@ def add_flight():
         
         except ValueError as e:
             flash(f'Error adding flight: Invalid data format. {str(e)}', 'danger')
-            return render_template('admin/flights.html', form=form, flights=Flight.query.all(), get_airport_name=data.get_airport_name, format_datetime=format_datetime, airports=data.airports, aircraft_types=data.aircraft_types)
+            return render_template('admin/flights.html', form=form, flights=Flight.query.all(), get_airport_name=data.get_airport_name, format_datetime=format_datetime, airports=data.airports, aircraft_types=data.aircraft_types, get_flight_status_badge_class=get_flight_status_badge_class)
         except Exception as e:
             flash(f'Error adding flight: {str(e)}', 'danger')
-            return render_template('admin/flights.html', form=form, flights=Flight.query.all(), get_airport_name=data.get_airport_name, format_datetime=format_datetime, airports=data.airports, aircraft_types=data.aircraft_types)
+            return render_template('admin/flights.html', form=form, flights=Flight.query.all(), get_airport_name=data.get_airport_name, format_datetime=format_datetime, airports=data.airports, aircraft_types=data.aircraft_types, get_flight_status_badge_class=get_flight_status_badge_class)
     
     # Render the form for GET requests
-    return render_template('admin/flights.html', form=form, flights=Flight.query.all(), get_airport_name=data.get_airport_name, format_datetime=format_datetime, airports=data.airports, aircraft_types=data.aircraft_types)
-
-from utils import send_booking_cancellation_email
+    return render_template('admin/flights.html', form=form, flights=Flight.query.all(), get_airport_name=data.get_airport_name, format_datetime=format_datetime, airports=data.airports, aircraft_types=data.aircraft_types, get_flight_status_badge_class=get_flight_status_badge_class)
 
 @app.route('/admin/flights/<int:flight_id>/update_status', methods=['POST'])
 @login_required
