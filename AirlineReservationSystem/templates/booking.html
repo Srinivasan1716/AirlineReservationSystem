@@ -52,6 +52,9 @@
     <form method="post" id="bookingForm">
         {{ form.hidden_tag() }}
         <input type="hidden" name="passengers_count" value="{{ passengers }}">
+        {% if current_user.frequent_flyer_points == 0 %}
+        <input type="hidden" name="points_to_redeem" value="0">
+        {% endif %}
 
         <div class="row">
             <div class="col-md-8">
@@ -209,7 +212,7 @@
                                 <label for="{{ form.points_to_redeem.id }}" class="form-label">
                                     Frequent Flyer Points to Redeem (Available: {{ current_user.frequent_flyer_points }} points, 1 point = ₹1)
                                 </label>
-                                {{ form.points_to_redeem(class="form-control", max=current_user.frequent_flyer_points, min=0) }}
+                                {{ form.points_to_redeem(class="form-control", max=current_user.frequent_flyer_points, min=0, value=0) }}
                                 {% for error in form.points_to_redeem.errors %}
                                 <div class="text-danger">{{ error }}</div>
                                 {% endfor %}
@@ -219,6 +222,12 @@
                             <span>Discount:</span>
                             <span id="discountAmount">{{ format_price(discount) }}</span>
                         </div>
+                        {% else %}
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Discount:</span>
+                            <span id="discountAmount">{{ format_price(0) }}</span>
+                        </div>
+                        <p class="text-muted small">No frequent flyer points available.</p>
                         {% endif %}
                         <hr>
                         <div class="d-flex justify-content-between mb-3">
@@ -342,269 +351,272 @@
 <script src="{{ url_for('static', filename='js/seat_selection.js') }}"></script>
 <script defer src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <script>
-    console.log("Booking form loaded");
-    const maxSelections = {{ passengers }};
-    const passengers = {{ passengers }};
-    const basePricePerTicket = {{ flight.price }};
-    const currentPricePerTicket = {{ flight.get_current_price() }};
-    const totalPrice = currentPricePerTicket * passengers;
-    const maxPointsPerTicket = 10000; // Maximum points per ticket
-    const maxPointsForBooking = maxPointsPerTicket * passengers; // Maximum points for the entire booking
-    const userAvailablePoints = {{ current_user.frequent_flyer_points }};
-    const maxRedeemablePoints = Math.min(userAvailablePoints, maxPointsForBooking); // Limit based on user points and per-ticket cap
-    window.selectedSeats = []; // Ensure global for seat_selection.js
-    let isPaymentInProgress = false; // Flag to disable seat interactions during payment
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log("Booking form loaded");
+        const maxSelections = {{ passengers }};
+        const passengers = {{ passengers }};
+        const basePricePerTicket = {{ flight.price }};
+        const currentPricePerTicket = {{ flight.get_current_price() }};
+        const totalPrice = currentPricePerTicket * passengers;
+        const maxPointsPerTicket = 10000;
+        const maxPointsForBooking = maxPointsPerTicket * passengers;
+        const userAvailablePoints = {{ current_user.frequent_flyer_points }};
+        const maxRedeemablePoints = Math.min(userAvailablePoints, maxPointsForBooking, totalPrice);
+        window.selectedSeats = [];
+        let isPaymentInProgress = false;
 
-    // Function to format price
-    function formatPrice(amount) {
-        return `₹${parseFloat(amount).toFixed(2)}`;
-    }
-
-    // Function to safely update text content
-    function safeUpdateTextContent(elementId, value) {
-        const element = document.getElementById(elementId);
-        if (element) {
-            element.textContent = value;
-        } else {
-            console.error(`Element with ID "${elementId}" not found.`);
+        function formatPrice(amount) {
+            return `₹${parseFloat(amount).toFixed(2)}`;
         }
-    }
 
-    // Function to update discount and final price based on points
-    function updatePriceSummary() {
+        function safeUpdateTextContent(elementId, value) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.textContent = value;
+            } else {
+                console.error(`Element with ID "${elementId}" not found.`);
+            }
+        }
+
+        function updatePriceSummary() {
+            const pointsInput = document.getElementById('points_to_redeem');
+            let pointsToRedeem = 0;
+
+            if (pointsInput) {
+                pointsToRedeem = parseInt(pointsInput.value) || 0;
+                if (pointsToRedeem < 0) {
+                    pointsToRedeem = 0;
+                    pointsInput.value = 0;
+                }
+                if (pointsToRedeem > maxRedeemablePoints) {
+                    pointsToRedeem = maxRedeemablePoints;
+                    pointsInput.value = maxRedeemablePoints;
+                    alert(`You can redeem a maximum of ${maxPointsPerTicket} points per ticket, up to ${maxRedeemablePoints} points for this booking.`);
+                }
+            }
+
+            const discount = pointsToRedeem;
+            const finalPrice = totalPrice - discount;
+
+            safeUpdateTextContent('totalPrice', formatPrice(totalPrice));
+            safeUpdateTextContent('discountAmount', formatPrice(discount));
+            safeUpdateTextContent('finalPrice', formatPrice(finalPrice));
+
+            return { totalPrice, discount, finalPrice };
+        }
+
         const pointsInput = document.getElementById('points_to_redeem');
-        let pointsToRedeem = parseInt(pointsInput.value) || 0;
-
-        // Ensure points are within bounds
-        if (pointsToRedeem < 0) {
-            pointsToRedeem = 0;
-            pointsInput.value = 0;
-        }
-        if (pointsToRedeem > maxRedeemablePoints) {
-            pointsToRedeem = maxRedeemablePoints;
-            pointsInput.value = maxRedeemablePoints;
-            alert(`You can redeem a maximum of ${maxPointsPerTicket} points per ticket, up to ${maxRedeemablePoints} points for this booking.`);
+        if (pointsInput) {
+            pointsInput.addEventListener('input', updatePriceSummary);
+            pointsInput.addEventListener('change', updatePriceSummary);
         }
 
-        // Since 1 point = ₹1, the discount is equal to the points redeemed
-        const discount = pointsToRedeem;
-        const finalPrice = totalPrice - discount;
+        updatePriceSummary();
 
-        // Update the UI
-        safeUpdateTextContent('totalPrice', formatPrice(totalPrice));
-        safeUpdateTextContent('discountAmount', formatPrice(discount));
-        safeUpdateTextContent('finalPrice', formatPrice(finalPrice));
-
-        return { totalPrice, discount, finalPrice };
-    }
-
-    // Add event listener for points input changes
-    const pointsInput = document.getElementById('points_to_redeem');
-    if (pointsInput) {
-        pointsInput.addEventListener('input', updatePriceSummary);
-        pointsInput.addEventListener('change', updatePriceSummary); // For when the user finishes editing
-    }
-
-    // Initialize price summary on page load
-    updatePriceSummary();
-
-    // Function to disable seat interactions
-    function disableSeatInteractions() {
-        console.log("Disabling seat interactions...");
-        isPaymentInProgress = true;
-        const availableSeats = document.querySelectorAll('.seat.available, .seat.selected');
-        availableSeats.forEach(seat => {
-            seat.style.pointerEvents = 'none'; // Disable pointer events
-        });
-    }
-
-    // Function to enable seat interactions
-    function enableSeatInteractions() {
-        console.log("Enabling seat interactions...");
-        isPaymentInProgress = false;
-        const availableSeats = document.querySelectorAll('.seat.available, .seat.selected');
-        availableSeats.forEach(seat => {
-            seat.style.pointerEvents = 'auto'; // Re-enable pointer events
-        });
-    }
-
-    document.getElementById('payButton').addEventListener('click', async function(e) {
-        console.log("Pay with Razorpay clicked");
-        if (selectedSeats.length !== maxSelections) {
-            alert(`Please select exactly ${maxSelections} seat(s) before proceeding.`);
-            console.error("Incorrect number of seats selected:", selectedSeats.length);
-            return;
-        }
-
-        // Verify CSRF token
-        const csrfToken = document.querySelector('input[name="csrf_token"]')?.value;
-        if (!csrfToken) {
-            alert('CSRF token is missing. Please refresh the page and try again.');
-            console.error("CSRF token not found");
-            return;
-        }
-
-        // Disable seat interactions
-        disableSeatInteractions();
-
-        // Submit form data to create booking
-        const formData = new FormData(document.getElementById('bookingForm'));
-        formData.append('passengers_count', passengers);
-        
-        // Log FormData contents
-        const formDataEntries = {};
-        for (const [key, value] of formData.entries()) {
-            formDataEntries[key] = value;
-        }
-        console.log("FormData sent:", formDataEntries);
-
-        try {
-            // Create booking
-            console.log("Creating booking...");
-            const bookingResponse = await fetch('/create_booking', {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-CSRFToken': csrfToken
-                }
+        function disableSeatInteractions() {
+            console.log("Disabling seat interactions...");
+            isPaymentInProgress = true;
+            const availableSeats = document.querySelectorAll('.seat.available, .seat.selected');
+            availableSeats.forEach(seat => {
+                seat.style.pointerEvents = 'none';
             });
-            if (!bookingResponse.ok) {
-                throw new Error(`Booking creation failed: ${bookingResponse.statusText}`);
-            }
-            const bookingData = await bookingResponse.json();
-            
-            if (bookingData.error) {
-                const errorDetails = bookingData.details 
-                    ? Object.entries(bookingData.details).map(([field, errors]) => `${field}: ${errors.join(', ')}`).join('; ')
-                    : 'No additional details';
-                const errorMsg = `Failed to create booking: ${bookingData.error}. Details: ${errorDetails}`;
-                alert(errorMsg);
-                console.error("Booking error:", bookingData.error, "Details:", bookingData.details);
-                enableSeatInteractions();
-                return;
-            }
-            console.log("Booking created, ID:", bookingData.booking_id);
+        }
 
-            // Update price summary with the server's response
-            safeUpdateTextContent('totalPrice', `₹${bookingData.total_price.toFixed(2)}`);
-            safeUpdateTextContent('discountAmount', `₹${bookingData.discount.toFixed(2)}`);
-            safeUpdateTextContent('finalPrice', `₹${bookingData.final_price.toFixed(2)}`);
-
-            // Create Razorpay order
-            formData.append('booking_id', bookingData.booking_id);
-            formData.append('final_price', bookingData.final_price);
-            console.log("Creating Razorpay order...");
-            const orderResponse = await fetch('/create_order', {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-CSRFToken': csrfToken
-                }
+        function enableSeatInteractions() {
+            console.log("Enabling seat interactions...");
+            isPaymentInProgress = false;
+            const availableSeats = document.querySelectorAll('.seat.available, .seat.selected');
+            availableSeats.forEach(seat => {
+                seat.style.pointerEvents = 'auto';
             });
-            if (!orderResponse.ok) {
-                throw new Error(`Order creation failed: ${orderResponse.statusText}`);
-            }
-            const orderData = await orderResponse.json();
-            
-            if (orderData.error) {
-                alert('Failed to initiate payment: ' + orderData.error);
-                console.error("Order error:", orderData.error, "Details:", orderData.details);
-                enableSeatInteractions();
-                return;
-            }
+        }
 
-            if (orderData.status === 'confirmed') {
-                // If final price is 0, booking is confirmed directly
-                console.log("Booking confirmed without payment, redirecting...");
-                window.location.href = '/booking/' + orderData.booking_id + '/confirm';
-                return;
-            }
+        const payButton = document.getElementById('payButton');
+        if (payButton) {
+            payButton.addEventListener('click', async function(e) {
+                console.log("Pay with Razorpay clicked");
+                if (selectedSeats.length !== maxSelections) {
+                    alert(`Please select exactly ${maxSelections} seat(s) before proceeding.`);
+                    console.error("Incorrect number of seats selected:", selectedSeats.length);
+                    return;
+                }
 
-            console.log("Order created, ID:", orderData.order_id);
+                const csrfToken = document.querySelector('input[name="csrf_token"]')?.value;
+                if (!csrfToken) {
+                    alert('CSRF token is missing. Please refresh the page and try again.');
+                    console.error("CSRF token not found");
+                    return;
+                }
 
-            // Initialize Razorpay checkout
-            if (typeof Razorpay === 'undefined') {
-                alert('Failed to load Razorpay SDK. Please check your internet connection.');
-                console.error("Razorpay SDK not loaded");
-                enableSeatInteractions();
-                return;
-            }
+                disableSeatInteractions();
 
-            const options = {
-                "key": orderData.key_id,
-                "amount": orderData.amount,
-                "currency": orderData.currency,
-                "name": "ABC Airlines",
-                "description": "Flight Booking Payment",
-                "order_id": orderData.order_id,
-                "handler": async function (response) {
-                    try {
-                        console.log("Payment successful, response:", response);
-                        // Verify payment
-                        const verifyForm = new FormData();
-                        verifyForm.append('razorpay_payment_id', response.razorpay_payment_id);
-                        verifyForm.append('razorpay_order_id', response.razorpay_order_id);
-                        verifyForm.append('razorpay_signature', response.razorpay_signature);
-                        verifyForm.append('booking_id', bookingData.booking_id);
-                        
-                        console.log("Verifying payment...");
-                        const verifyResponse = await fetch('/verify_payment', {
-                            method: 'POST',
-                            body: verifyForm,
-                            headers: {
-                                'X-CSRFToken': csrfToken
+                const formData = new FormData(document.getElementById('bookingForm'));
+                formData.append('passengers_count', passengers);
+                if (!formData.get('points_to_redeem')) {
+                    formData.append('points_to_redeem', '0');
+                }
+
+                const formDataEntries = {};
+                for (const [key, value] of formData.entries()) {
+                    formDataEntries[key] = value;
+                }
+                console.log("FormData sent:", formDataEntries);
+
+                try {
+                    console.log("Creating booking...");
+                    const bookingResponse = await fetch('/create_booking', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': csrfToken
+                        }
+                    });
+                    if (!bookingResponse.ok) {
+                        const errorText = await bookingResponse.text();
+                        throw new Error(`Booking creation failed: ${bookingResponse.status} - ${errorText}`);
+                    }
+                    const bookingData = await bookingResponse.json();
+                    
+                    if (bookingData.error) {
+                        const errorDetails = bookingData.details 
+                            ? Object.entries(bookingData.details).map(([field, errors]) => `${field}: ${errors.join(', ')}`).join('; ')
+                            : 'No additional details';
+                        const errorMsg = `Failed to create booking: ${bookingData.error}. Details: ${errorDetails}`;
+                        alert(errorMsg);
+                        console.error("Booking error:", bookingData.error, "Details:", bookingData.details);
+                        enableSeatInteractions();
+                        return;
+                    }
+                    console.log("Booking created, ID:", bookingData.booking_id);
+
+                    safeUpdateTextContent('totalPrice', `₹${bookingData.total_price.toFixed(2)}`);
+                    safeUpdateTextContent('discountAmount', `₹${bookingData.discount.toFixed(2)}`);
+                    safeUpdateTextContent('finalPrice', `₹${bookingData.final_price.toFixed(2)}`);
+
+                    formData.append('booking_id', bookingData.booking_id);
+                    formData.append('final_price', bookingData.final_price);
+                    console.log("Creating Razorpay order...");
+                    const orderResponse = await fetch('/create_order', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': csrfToken
+                        }
+                    });
+                    if (!orderResponse.ok) {
+                        const errorText = await orderResponse.text();
+                        throw new Error(`Order creation failed: ${orderResponse.status} - ${errorText}`);
+                    }
+                    const orderData = await orderResponse.json();
+                    
+                    if (orderData.error) {
+                        alert('Failed to initiate payment: ' + orderData.error);
+                        console.error("Order error:", orderData.error, "Details:", orderData.details);
+                        enableSeatInteractions();
+                        return;
+                    }
+
+                    if (orderData.status === 'confirmed') {
+                        console.log("Booking confirmed without payment, redirecting...");
+                        window.location.href = '/booking/' + orderData.booking_id + '/confirm';
+                        return;
+                    }
+
+                    console.log("Order created, ID:", orderData.order_id);
+
+                    if (typeof Razorpay === 'undefined') {
+                        alert('Failed to load Razorpay SDK. Please check your internet connection.');
+                        console.error("Razorpay SDK not loaded");
+                        enableSeatInteractions();
+                        return;
+                    }
+
+                    if (navigator.cookieEnabled === false) {
+                        alert('Cookies are disabled in your browser, which may prevent payment processing. Please enable cookies and try again.');
+                        console.error("Cookies are disabled");
+                        enableSeatInteractions();
+                        return;
+                    }
+
+                    const options = {
+                        "key": orderData.key_id,
+                        "amount": orderData.amount,
+                        "currency": orderData.currency,
+                        "name": "ABC Airlines",
+                        "description": "Flight Booking Payment",
+                        "order_id": orderData.order_id,
+                        "handler": async function (response) {
+                            try {
+                                console.log("Payment successful, response:", response);
+                                const verifyForm = new FormData();
+                                verifyForm.append('razorpay_payment_id', response.razorpay_payment_id);
+                                verifyForm.append('razorpay_order_id', response.razorpay_order_id);
+                                verifyForm.append('razorpay_signature', response.razorpay_signature);
+                                verifyForm.append('booking_id', bookingData.booking_id);
+                                
+                                console.log("Verifying payment...");
+                                const verifyResponse = await fetch('/verify_payment', {
+                                    method: 'POST',
+                                    body: verifyForm,
+                                    headers: {
+                                        'X-CSRFToken': csrfToken
+                                    }
+                                });
+                                if (!verifyResponse.ok) {
+                                    const errorText = await verifyResponse.text();
+                                    throw new Error(`Payment verification failed: ${verifyResponse.status} - ${errorText}`);
+                                }
+                                
+                                const verifyData = await verifyResponse.json();
+                                if (verifyData.status === 'success') {
+                                    console.log("Payment verified, redirecting...");
+                                    window.location.href = '/booking/' + bookingData.booking_id + '/confirm';
+                                } else {
+                                    alert('Payment verification failed: ' + (verifyData.error || 'Unknown error'));
+                                    console.error("Verification error:", verifyData.error);
+                                    window.location.href = '/payment_failed?error_message=' + encodeURIComponent(verifyData.error || 'Payment verification failed');
+                                }
+                            } catch (error) {
+                                console.error("Error in payment handler:", error);
+                                alert('An error occurred during payment verification: ' + error.message);
+                                window.location.href = '/payment_failed?error_message=' + encodeURIComponent(error.message);
+                            } finally {
+                                enableSeatInteractions();
                             }
-                        });
-                        if (!verifyResponse.ok) {
-                            throw new Error(`Payment verification failed: ${verifyResponse.statusText}`);
+                        },
+                        "prefill": {
+                            "name": "{{ current_user.username }}",
+                            "email": "{{ current_user.email }}",
+                            "contact": "{{ current_user.phone or '' }}"
+                        },
+                        "theme": {
+                            "color": "#0d6efd"
+                        },
+                        "modal": {
+                            "ondismiss": function() {
+                                console.log("Razorpay modal dismissed");
+                                enableSeatInteractions();
+                            }
                         }
-                        
-                        const verifyData = await verifyResponse.json();
-                        if (verifyData.status === 'success') {
-                            console.log("Payment verified, redirecting...");
-                            window.location.href = '/booking/' + bookingData.booking_id + '/confirm';
-                        } else {
-                            alert('Payment verification failed: ' + (verifyData.error || 'Unknown error'));
-                            console.error("Verification error:", verifyData.error);
-                            window.location.href = '/payment_failed?error_message=' + encodeURIComponent(verifyData.error || 'Payment verification failed');
-                        }
-                    } catch (error) {
-                        console.error("Error in payment handler:", error);
-                        alert('An error occurred during payment verification: ' + error.message);
-                        window.location.href = '/payment_failed?error_message=' + encodeURIComponent(error.message);
-                    } finally {
+                    };
+                    
+                    console.log("Initializing Razorpay checkout...");
+                    const rzp = new Razorpay(options);
+                    rzp.on('payment.failed', function (response) {
+                        console.error("Payment failed:", response.error);
+                        alert('Payment failed: ' + response.error.description);
                         enableSeatInteractions();
-                    }
-                },
-                "prefill": {
-                    "name": "{{ current_user.username }}",
-                    "email": "{{ current_user.email }}",
-                    "contact": "{{ current_user.phone or '' }}"
-                },
-                "theme": {
-                    "color": "#0d6efd"
-                },
-                "modal": {
-                    "ondismiss": function() {
-                        console.log("Razorpay modal dismissed");
-                        enableSeatInteractions();
-                    }
+                        window.location.href = '/payment_failed?error_message=' + encodeURIComponent(response.error.description);
+                    });
+                    rzp.open();
+                } catch (error) {
+                    console.error('Payment error:', error);
+                    alert('An error occurred while processing your payment: ' + error.message);
+                    enableSeatInteractions();
                 }
-            };
-            
-            console.log("Initializing Razorpay checkout...");
-            const rzp = new Razorpay(options);
-            rzp.on('payment.failed', function (response) {
-                console.error("Payment failed:", response.error);
-                alert('Payment failed: ' + response.error.description);
-                enableSeatInteractions();
-                window.location.href = '/payment_failed?error_message=' + encodeURIComponent(response.error.description);
             });
-            rzp.open();
-        } catch (error) {
-            console.error('Payment error:', error);
-            alert('An error occurred while processing your payment: ' + error.message);
-            enableSeatInteractions();
+        } else {
+            console.error("Pay button not found");
         }
     });
 </script>
