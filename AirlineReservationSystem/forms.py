@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField, SelectField, DateField, IntegerField, HiddenField, FormField, FieldList
+from wtforms import StringField, PasswordField, SubmitField, SelectField, DateField, IntegerField, HiddenField, FormField, FieldList, DateTimeField
 from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError, NumberRange
 from datetime import datetime, date, timedelta
 import data
@@ -90,11 +90,11 @@ class AdminFlightForm(FlaskForm):
     flight_number = StringField('Flight Number', validators=[DataRequired()])
     origin = SelectField('Origin', validators=[DataRequired()])
     destination = SelectField('Destination', validators=[DataRequired()])
-    departure_time = DateField('Departure Time', validators=[DataRequired()], format='%Y-%m-%d')
-    arrival_time = DateField('Arrival Time', validators=[DataRequired()], format='%Y-%m-%d')
+    departure_time = DateTimeField('Departure Time', validators=[DataRequired()], format='%Y-%m-%dT%H:%M')
+    arrival_time = DateTimeField('Arrival Time', validators=[DataRequired()], format='%Y-%m-%dT%H:%M')
     aircraft_type = SelectField('Aircraft Type', validators=[DataRequired()])
-    seats_total = IntegerField('Total Seats', validators=[DataRequired()])
-    price = IntegerField('Base Price', validators=[DataRequired()])
+    seats_total = IntegerField('Total Seats', validators=[DataRequired(), NumberRange(min=1)])
+    price = IntegerField('Base Price', validators=[DataRequired(), NumberRange(min=1)])
     status = SelectField('Status', choices=[
         ('Scheduled', 'Scheduled'),
         ('Delayed', 'Delayed'),

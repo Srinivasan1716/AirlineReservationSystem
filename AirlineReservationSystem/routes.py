@@ -13,8 +13,10 @@ from dotenv import load_dotenv
 import logging
 from datetime import datetime, timedelta, date
 import data
-import logging
-logging.debug("Initializing app.py")
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
+logging.debug("Initializing routes.py")
 
 # Load environment variables
 load_dotenv()
@@ -23,9 +25,6 @@ RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET')
 
 # Initialize Razorpay client
 razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
-
-# Configure logging
-logging.basicConfig(level=logging.DEBUG)
 
 # Home page
 @app.route('/', methods=['GET', 'POST'])
@@ -91,7 +90,7 @@ def flight_details(flight_id):
         'flight_details.html', 
         flight=flight, 
         passengers=passengers,
-        get_airport_name=data.get_airport_name,
+       ointedget_airport_name=data.get_airport_name,
         format_datetime=format_datetime,
         format_price=format_price
     )
@@ -524,14 +523,79 @@ def admin_flights():
     
     filtered_flights = query.order_by(Flight.departure_time).all()
     
+    form = AdminFlightForm()  # Instantiate the form
+    
     return render_template(
         'admin/flights.html',
         flights=filtered_flights,
         get_airport_name=data.get_airport_name,
         format_datetime=format_datetime,
         search=search,
-        status=status
+        status=status,
+        form=form,
+        airports=data.airports,
+        aircraft_types=data.aircraft_types
     )
+
+# Admin add flight
+@app.route('/admin/add_flight', methods=['GET', 'POST'])
+@login_required
+def add_flight():
+    if not current_user.is_admin:
+        flash('Access denied', 'danger')
+        return redirect(url_for('index'))
+    
+    form = AdminFlightForm()
+    
+    if form.validate_on_submit():
+        try:
+            # Create a new Flight object
+            new_flight = Flight(
+                flight_number=form.flight_number.data,
+                origin=form.origin.data,
+                destination=form.destination.data,
+                departure_time=form.departure_time.data,
+                arrival_time=form.arrival_time.data,
+                aircraft_type=form.aircraft_type.data,
+                seats_total=form.seats_total.data,
+                seats_available=form.seats_total.data,
+                price=form.price.data,
+                status=form.status.data
+            )
+
+            # Validate inputs
+            if new_flight.origin == new_flight.destination:
+                flash('Origin and destination cannot be the same.', 'danger')
+                return render_template('admin/flights.html', form=form, flights=Flight.query.all(), get_airport_name=data.get_airport_name, format_datetime=format_datetime, airports=data.airports, aircraft_types=data.aircraft_types)
+            
+            if new_flight.departure_time >= new_flight.arrival_time:
+                flash('Departure time must be before arrival time.', 'danger')
+                return render_template('admin/flights.html', form=form, flights=Flight.query.all(), get_airport_name=data.get_airport_name, format_datetime=format_datetime, airports=data.airports, aircraft_types=data.aircraft_types)
+            
+            if new_flight.seats_total <= 0:
+                flash('Total seats must be a positive number.', 'danger')
+                return render_template('admin/flights.html', form=form, flights=Flight.query.all(), get_airport_name=data.get_airport_name, format_datetime=format_datetime, airports=data.airports, aircraft_types=data.aircraft_types)
+            
+            if new_flight.price <= 0:
+                flash('Price must be a positive number.', 'danger')
+                return render_template('admin/flights.html', form=form, flights=Flight.query.all(), get_airport_name=data.get_airport_name, format_datetime=format_datetime, airports=data.airports, aircraft_types=data.aircraft_types)
+            
+            db.session.add(new_flight)
+            db.session.commit()
+            app.logger.info(f"Added flight: {new_flight.flight_number}, Total flights: {Flight.query.count()}")
+
+            flash('Flight added successfully!', 'success')
+            return redirect(url_for('admin_flights'))
+        
+        except ValueError as e:
+            flash(f'Error adding flight: Invalid data format. {str(e)}', 'danger')
+            return render_template('admin/flights.html', form=form, flights=Flight.query.all(), get_airport_name=data.get_airport_name, format_datetime=format_datetime, airports=data.airports, aircraft_types=data.aircraft_types)
+        except Exception as e:
+            flash(f'Error adding flight: {str(e)}', 'danger')
+            return render_template('admin/flights.html', form=form, flights=Flight.query.all(), get_airport_name=data.get_airport_name, format_datetime=format_datetime, airports=data.airports, aircraft_types=data.aircraft_types)
+    
+    # Render the form for GET requests
+    return render_template('admin/flights.html', form=form, flights=Flight.query.all(), get_airport_name=data.get_airport_name, format_datetime=format_datetime, airports=data.airports, aircraft_types=data.aircraft_types)
 
 # Admin bookings
 @app.route('/admin/bookings', methods=['GET'])
@@ -545,6 +609,8 @@ def admin_bookings():
     status = request.args.get('status', '')
     page = request.args.get('page', 1, type=int)
     per_page = 10
+    
+    form = BookingSearchForm()  # Instantiate the form
     
     query = Booking.query
     
@@ -567,9 +633,10 @@ def admin_bookings():
         pagination=pagination,
         search=search,
         status=status,
-        get_user_by_id=get_user_by_id,  # Use imported function
-        get_flight_by_id=get_flight_by_id,  # Use imported function
-        format_datetime=format_datetime
+        get_user_by_id=get_user_by_id,
+        get_flight_by_id=get_flight_by_id,
+        format_datetime=format_datetime,
+        form=form  # Pass the form
     )
 
 # Admin users
@@ -617,66 +684,3 @@ def utility_processor():
         'format_time': format_time,
         'format_price': format_price
     }
-
-@app.route('/admin/add_flight', methods=['POST'])
-@login_required
-def add_flight():
-    if not current_user.is_admin:
-        flash('Access denied', 'danger')
-        return redirect(url_for('index'))
-    
-    try:
-        flight_number = request.form.get('flight_number')
-        origin = request.form.get('origin')
-        destination = request.form.get('destination')
-        departure_time = datetime.strptime(request.form.get('departure_time'), '%Y-%m-%dT%H:%M')
-        arrival_time = datetime.strptime(request.form.get('arrival_time'), '%Y-%m-%dT%H:%M')
-        aircraft_type = request.form.get('aircraft_type')
-        seats_total = int(request.form.get('seats_total'))
-        price = float(request.form.get('price'))
-        status = request.form.get('status')
-
-        # Validate inputs
-        if origin == destination:
-            flash('Origin and destination cannot be the same.', 'danger')
-            return redirect(url_for('admin_flights'))
-        
-        if departure_time >= arrival_time:
-            flash('Departure time must be before arrival time.', 'danger')
-            return redirect(url_for('admin_flights'))
-        
-        if seats_total <= 0:
-            flash('Total seats must be a positive number.', 'danger')
-            return redirect(url_for('admin_flights'))
-        
-        if price <= 0:
-            flash('Price must be a positive number.', 'danger')
-            return redirect(url_for('admin_flights'))
-        
-        # Create a new Flight object
-        new_flight = Flight(
-            flight_number=flight_number,
-            origin=origin,
-            destination=destination,
-            departure_time=departure_time,
-            arrival_time=arrival_time,
-            aircraft_type=aircraft_type,
-            seats_total=seats_total,
-            seats_available=seats_total,
-            price=price,
-            status=status
-        )
-
-        db.session.add(new_flight)
-        db.session.commit()
-        app.logger.info(f"Added flight: {new_flight.flight_number}, Total flights: {Flight.query.count()}")
-
-        flash('Flight added successfully!', 'success')
-        return redirect(url_for('admin_flights'))
-    
-    except ValueError as e:
-        flash(f'Error adding flight: Invalid data format. {str(e)}', 'danger')
-        return redirect(url_for('admin_flights'))
-    except Exception as e:
-        flash(f'Error adding flight: {str(e)}', 'danger')
-        return redirect(url_for('admin_flights'))

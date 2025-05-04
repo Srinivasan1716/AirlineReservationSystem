@@ -6,9 +6,11 @@
 <div class="mb-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>Manage Bookings</h1>
-        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary">
-            <i class="fas fa-tachometer-alt me-2"></i>Dashboard
-        </a>
+        <div>
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary me-2">
+                <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+            </a>
+        </div>
     </div>
     
     <div class="card mb-4">
@@ -17,21 +19,40 @@
         </div>
         <div class="card-body">
             <form action="{{ url_for('admin_bookings') }}" method="get" class="row g-3">
+                {{ form.hidden_tag() }}
                 <div class="col-md-4">
                     <div class="input-group">
                         <span class="input-group-text"><i class="fas fa-search"></i></span>
-                        <input type="text" class="form-control" name="search" value="{{ search }}" placeholder="Booking reference">
+                        {{ form.booking_reference(class="form-control", placeholder="Booking Reference") }}
                     </div>
+                    {% if form.booking_reference.errors %}
+                        <div class="text-danger">
+                            {% for error in form.booking_reference.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="col-md-3">
+                    {{ form.last_name(class="form-control", placeholder="Last Name") }}
+                    {% if form.last_name.errors %}
+                        <div class="text-danger">
+                            {% for error in form.last_name.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
                 </div>
                 <div class="col-md-3">
                     <select name="status" class="form-select">
                         <option value="">All Statuses</option>
+                        <option value="Pending" {% if status == 'Pending' %}selected{% endif %}>Pending</option>
                         <option value="Confirmed" {% if status == 'Confirmed' %}selected{% endif %}>Confirmed</option>
                         <option value="Cancelled" {% if status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
-                        <option value="Checked-in" {% if status == 'Checked-in' %}selected{% endif %}>Checked-in</option>
+                        <option value="Failed" {% if status == 'Failed' %}selected{% endif %}>Failed</option>
                     </select>
                 </div>
-                <div class="col-md-5 d-flex">
+                <div class="col-md-2 d-flex">
                     <button type="submit" class="btn btn-primary me-2">Apply Filters</button>
                     <a href="{{ url_for('admin_bookings') }}" class="btn btn-outline-secondary">Clear Filters</a>
                 </div>
@@ -47,12 +68,10 @@
             <table class="table table-hover">
                 <thead>
                     <tr>
-                        <th>Reference</th>
+                        <th>Booking Ref</th>
                         <th>User</th>
                         <th>Flight</th>
-                        <th>Booking Date</th>
-                        <th>Passengers</th>
-                        <th>Seats</th>
+                        <th>Booking Time</th>
                         <th>Price</th>
                         <th>Status</th>
                         <th>Actions</th>
@@ -64,45 +83,27 @@
                         <td>{{ booking.booking_reference }}</td>
                         <td>
                             {% set user = get_user_by_id(booking.user_id) %}
-                            {% if user %}
-                            {{ user.username }}
-                            {% else %}
-                            Unknown
-                            {% endif %}
+                            {{ user.username if user else 'Unknown' }}
                         </td>
                         <td>
                             {% set flight = get_flight_by_id(booking.flight_id) %}
-                            {% if flight %}
-                            {{ flight.flight_number }}
-                            {% else %}
-                            Unknown
-                            {% endif %}
+                            {{ flight.flight_number if flight else 'Unknown' }}
                         </td>
                         <td>{{ format_datetime(booking.booking_time) }}</td>
-                        <td>{{ booking.passengers|length }}</td>
-                        <td>
-                            {% if booking.seat_numbers %}
-                                {{ booking.seat_numbers | map(attribute='seat_number') | join(', ') }}
-                            {% else %}
-                                -
-                            {% endif %}
-                        </td>
                         <td>{{ format_price(booking.price_paid) }}</td>
                         <td>
-                            <span class="badge {{ 'bg-success' if booking.status == 'Confirmed' else 'bg-danger' if booking.status == 'Cancelled' else 'bg-info' }}">
+                            <span class="badge {{ 'bg-success' if booking.status == 'Confirmed' else 'bg-warning' if booking.status == 'Pending' else 'bg-danger' if booking.status == 'Cancelled' else 'bg-secondary' }}">
                                 {{ booking.status }}
                             </span>
                         </td>
                         <td>
                             <div class="btn-group btn-group-sm">
-                                <button type="button" class="btn btn-outline-info" title="View Details" data-bs-toggle="modal" data-bs-target="#viewBookingModal{{ booking.id }}">
+                                <button type="button" class="btn btn-outline-info" title="View Details" disabled>
                                     <i class="fas fa-eye"></i>
                                 </button>
-                                {% if booking.status == 'Confirmed' %}
                                 <button type="button" class="btn btn-outline-danger" title="Cancel Booking" disabled>
                                     <i class="fas fa-ban"></i>
                                 </button>
-                                {% endif %}
                             </div>
                         </td>
                     </tr>
@@ -115,182 +116,33 @@
             <p class="mb-0">No bookings found matching your criteria.</p>
         </div>
         {% endif %}
-        <!-- Pagination controls -->
-        {% if pagination %}
-        <div class="d-flex justify-content-between align-items-center mt-3">
-            <div>
-                Showing {{ pagination.items|length }} of {{ pagination.total }} bookings
-            </div>
-            <nav>
-                <ul class="pagination mb-0">
-                    {% if pagination.has_prev %}
-                    <li class="page-item">
-                        <a class="page-link" href="{{ url_for('admin_bookings', page=pagination.prev_num, search=search, status=status) }}">Previous</a>
-                    </li>
-                    {% else %}
-                    <li class="page-item disabled">
-                        <span class="page-link">Previous</span>
-                    </li>
-                    {% endif %}
-                    
-                    {% for p in pagination.iter_pages() %}
-                    {% if p %}
-                    <li class="page-item {{ 'active' if p == pagination.page else '' }}">
-                        <a class="page-link" href="{{ url_for('admin_bookings', page=p, search=search, status=status) }}">{{ p }}</a>
-                    </li>
-                    {% else %}
-                    <li class="page-item disabled">
-                        <span class="page-link">...</span>
-                    </li>
-                    {% endif %}
-                    {% endfor %}
-                    
-                    {% if pagination.has_next %}
-                    <li class="page-item">
-                        <a class="page-link" href="{{ url_for('admin_bookings', page=pagination.next_num, search=search, status=status) }}">Next</a>
-                    </li>
-                    {% else %}
-                    <li class="page-item disabled">
-                        <span class="page-link">Next</span>
-                    </li>
-                    {% endif %}
-                </ul>
-            </nav>
-        </div>
-        {% endif %}
     </div>
+    
+    <!-- Pagination -->
+    {% if pagination %}
+    <nav aria-label="Page navigation">
+        <ul class="pagination justify-content-center mt-4">
+            {% if pagination.has_prev %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('admin_bookings', page=pagination.prev_num, search=search, status=status) }}">Previous</a>
+            </li>
+            {% endif %}
+            {% for page in pagination.iter_pages() %}
+            {% if page %}
+            <li class="page-item {% if page == pagination.page %}active{% endif %}">
+                <a class="page-link" href="{{ url_for('admin_bookings', page=page, search=search, status=status) }}">{{ page }}</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">...</span></li>
+            {% endif %}
+            {% endfor %}
+            {% if pagination.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('admin_bookings', page=pagination.next_num, search=search, status=status) }}">Next</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
 </div>
-
-<!-- Move the modal outside the main content loop to avoid duplication -->
-{% for booking in bookings %}
-<!-- View Booking Modal -->
-<div class="modal fade" id="viewBookingModal{{ booking.id }}" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Booking Details: {{ booking.booking_reference }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6>Booking Information</h6>
-                        <ul class="list-group list-group-flush mb-4">
-                            <li class="list-group-item d-flex justify-content-between">
-                                <span>Reference:</span>
-                                <span>{{ booking.booking_reference }}</span>
-                            </li>
-                            <li class="list-group-item d-flex justify-content-between">
-                                <span>Status:</span>
-                                <span class="badge {{ 'bg-success' if booking.status == 'Confirmed' else 'bg-danger' if booking.status == 'Cancelled' else 'bg-info' }}">
-                                    {{ booking.status }}
-                                </span>
-                            </li>
-                            <li class="list-group-item d-flex justify-content-between">
-                                <span>Booking Date:</span>
-                                <span>{{ format_datetime(booking.booking_time) }}</span>
-                            </li>
-                            <li class="list-group-item d-flex justify-content-between">
-                                <span>Total Price:</span>
-                                <span>{{ format_price(booking.price_paid) }}</span>
-                            </li>
-                        </ul>
-                    </div>
-                    <div class="col-md-6">
-                        <h6>Flight Information</h6>
-                        {% set flight = get_flight_by_id(booking.flight_id) %}
-                        {% if flight %}
-                        <ul class="list-group list-group-flush mb-4">
-                            <li class="list-group-item d-flex justify-content-between">
-                                <span>Flight Number:</span>
-                                <span>{{ flight.flight_number }}</span>
-                            </li>
-                            <li class="list-group-item d-flex justify-content-between">
-                                <span>From:</span>
-                                <span>{{ flight.origin }}</span>
-                            </li>
-                            <li class="list-group-item d-flex justify-content-between">
-                                <span>To:</span>
-                                <span>{{ flight.destination }}</span>
-                            </li>
-                            <li class="list-group-item d-flex justify-content-between">
-                                <span>Departure:</span>
-                                <span>{{ format_datetime(flight.departure_time) }}</span>
-                            </li>
-                        </ul>
-                        {% else %}
-                        <div class="alert alert-warning">Flight information not available</div>
-                        {% endif %}
-                    </div>
-                </div>
-                
-                <h6>Passenger Information</h6>
-                <div class="table-responsive">
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Name</th>
-                                <th>Date of Birth</th>
-                                <th>Passport</th>
-                                <th>Seat</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for i in range(booking.passengers|length) %}
-                            <tr>
-                                <td>{{ i + 1 }}</td>
-                                <td>{{ booking.passengers[i].first_name }} {{ booking.passengers[i].last_name }}</td>
-                                <td>
-                                    {% if booking.passengers[i].date_of_birth %}
-                                        {{ booking.passengers[i].date_of_birth.strftime('%d %b %Y') if booking.passengers[i].date_of_birth else 'Not provided' }}
-                                    {% else %}
-                                        Not provided
-                                    {% endif %}
-                                </td>
-                                <td>{{ booking.passengers[i].passport_number or 'Not provided' }}</td>
-                                <td>
-                                    {% if booking.seat_numbers and i < booking.seat_numbers|length %}
-                                        {{ booking.seat_numbers[i].seat_number }}
-                                    {% else %}
-                                        Not assigned
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                
-                <div class="mt-3">
-                    <h6>User Information</h6>
-                    {% set user = get_user_by_id(booking.user_id) %}
-                    {% if user %}
-                    <ul class="list-group list-group-flush">
-                        <li class="list-group-item d-flex justify-content-between">
-                            <span>Username:</span>
-                            <span>{{ user.username }}</span>
-                        </li>
-                        <li class="list-group-item d-flex justify-content-between">
-                            <span>Email:</span>
-                            <span>{{ user.email }}</span>
-                        </li>
-                        <li class="list-group-item d-flex justify-content-between">
-                            <span>Frequent Flyer Points:</span>
-                            <span>{{ user.frequent_flyer_points }}</span>
-                        </li>
-                    </ul>
-                    {% else %}
-                    <div class="alert alert-warning">User information not available</div>
-                    {% endif %}
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
-</div>
-{% endfor %}
-
 {% endblock %}
