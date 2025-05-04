@@ -75,7 +75,7 @@
                         <td>{{ flight.seats_available }}/{{ flight.seats_total }}</td>
                         <td>{{ format_price(flight.get_current_price()) }}</td>
                         <td>
-                            <span class="badge {{ 'bg-success' if flight.status == 'Scheduled' else 'bg-warning' if flight.status == 'Delayed' else 'bg-danger' if flight.status == 'Cancelled' else 'bg-secondary' }}">
+                            <span class="badge {{ get_flight_status_badge_class(flight.status) }}">
                                 {{ flight.status }}
                             </span>
                         </td>
@@ -87,9 +87,12 @@
                                 <button type="button" class="btn btn-outline-info" title="View Details" disabled>
                                     <i class="fas fa-eye"></i>
                                 </button>
-                                <button type="button" class="btn btn-outline-danger" title="Cancel Flight" disabled>
-                                    <i class="fas fa-ban"></i>
-                                </button>
+                                <form action="{{ url_for('cancel_flight', flight_id=flight.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to cancel this flight? This will notify all affected passengers.');">
+                                    {{ form.csrf_token if form else '' }}
+                                    <button type="submit" class="btn btn-outline-danger" title="Cancel Flight" {% if flight.status == 'Cancelled' %}disabled{% endif %}>
+                                        <i class="fas fa-ban"></i>
+                                    </button>
+                                </form>
                             </div>
                         </td>
                     </tr>
@@ -134,59 +137,87 @@
             </div>
             <div class="modal-body">
                 <form method="POST" action="{{ url_for('add_flight') }}" id="addFlightForm">
-                    {{ form.hidden_tag() if form else '' }}
+                    {{ form.hidden_tag() }}
                     <div class="mb-3">
                         <label for="flight_number" class="form-label">Flight Number</label>
-                        <input type="text" class="form-control" id="flight_number" name="flight_number" required>
+                        {{ form.flight_number(class="form-control", required=True) }}
+                        {% if form.flight_number.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in form.flight_number.errors %}{{ error }}<br>{% endfor %}
+                            </div>
+                        {% endif %}
                     </div>
                     <div class="mb-3">
                         <label for="origin" class="form-label">Origin</label>
-                        <select class="form-select" id="origin" name="origin" required>
-                            {% for code in airports %}
-                            <option value="{{ code }}">{{ airports[code]['city'] }} ({{ code }})</option>
-                            {% endfor %}
-                        </select>
+                        {{ form.origin(class="form-select", required=True) }}
+                        {% if form.origin.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in form.origin.errors %}{{ error }}<br>{% endfor %}
+                            </div>
+                        {% endif %}
                     </div>
                     <div class="mb-3">
                         <label for="destination" class="form-label">Destination</label>
-                        <select class="form-select" id="destination" name="destination" required>
-                            {% for code in airports %}
-                            <option value="{{ code }}">{{ airports[code]['city'] }} ({{ code }})</option>
-                            {% endfor %}
-                        </select>
+                        {{ form.destination(class="form-select", required=True) }}
+                        {% if form.destination.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in form.destination.errors %}{{ error }}<br>{% endfor %}
+                            </div>
+                        {% endif %}
                     </div>
                     <div class="mb-3">
                         <label for="departure_time" class="form-label">Departure Time</label>
-                        <input type="datetime-local" class="form-control" id="departure_time" name="departure_time" required>
+                        {{ form.departure_time(class="form-control", type="datetime-local", required=True) }}
+                        {% if form.departure_time.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in form.departure_time.errors %}{{ error }}<br>{% endfor %}
+                            </div>
+                        {% endif %}
                     </div>
                     <div class="mb-3">
                         <label for="arrival_time" class="form-label">Arrival Time</label>
-                        <input type="datetime-local" class="form-control" id="arrival_time" name="arrival_time" required>
+                        {{ form.arrival_time(class="form-control", type="datetime-local", required=True) }}
+                        {% if form.arrival_time.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in form.arrival_time.errors %}{{ error }}<br>{% endfor %}
+                            </div>
+                        {% endif %}
                     </div>
                     <div class="mb-3">
                         <label for="aircraft_type" class="form-label">Aircraft Type</label>
-                        <select class="form-select" id="aircraft_type" name="aircraft_type" required>
-                            {% for aircraft in aircraft_types %}
-                            <option value="{{ aircraft }}">{{ aircraft }}</option>
-                            {% endfor %}
-                        </select>
+                        {{ form.aircraft_type(class="form-select", required=True) }}
+                        {% if form.aircraft_type.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in form.aircraft_type.errors %}{{ error }}<br>{% endfor %}
+                            </div>
+                        {% endif %}
                     </div>
                     <div class="mb-3">
                         <label for="seats_total" class="form-label">Total Seats</label>
-                        <input type="number" class="form-control" id="seats_total" name="seats_total" required>
+                        {{ form.seats_total(class="form-control", required=True) }}
+                        {% if form.seats_total.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in form.seats_total.errors %}{{ error }}<br>{% endfor %}
+                            </div>
+                        {% endif %}
                     </div>
                     <div class="mb-3">
                         <label for="price" class="form-label">Base Price (INR)</label>
-                        <input type="number" class="form-control" id="price" name="price" step="0.01" required>
+                        {{ form.price(class="form-control", required=True) }}
+                        {% if form.price.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in form.price.errors %}{{ error }}<br>{% endfor %}
+                            </div>
+                        {% endif %}
                     </div>
                     <div class="mb-3">
                         <label for="status" class="form-label">Status</label>
-                        <select class="form-select" id="status" name="status" required>
-                            <option value="Scheduled">Scheduled</option>
-                            <option value="Delayed">Delayed</option>
-                            <option value="Cancelled">Cancelled</option>
-                            <option value="Completed">Completed</option>
-                        </select>
+                        {{ form.status(class="form-select", required=True) }}
+                        {% if form.status.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in form.status.errors %}{{ error }}<br>{% endfor %}
+                            </div>
+                        {% endif %}
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>

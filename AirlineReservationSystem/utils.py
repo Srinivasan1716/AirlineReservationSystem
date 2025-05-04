@@ -109,3 +109,55 @@ def send_booking_confirmation(user, booking, mail):
     except Exception as e:
         current_app.logger.error(f"Email sending failed: {e}")
         return False
+'''
+def send_flight_cancellation_email(user, booking, flight, mail):
+    """Send a flight cancellation email to the user"""
+    msg = Message(
+        'Flight Cancellation Notification',
+        recipients=[user.email],
+        body=f"""Dear {user.username},
+
+We regret to inform you that your flight {flight.flight_number} from {get_airport_city(flight.origin)} to {get_airport_city(flight.destination)} scheduled for {format_datetime(flight.departure_time)} has been cancelled.
+
+Booking Reference: {booking.booking_reference}
+Status: Cancelled
+
+Please contact our support team at support@airwaysabc.com or call +1-800-555-1234 for assistance with rebooking or refunds.
+
+Thank you for your understanding,
+Airways ABC Team"""
+    )
+    try:
+        with current_app.app_context():
+            mail.send(msg)
+        current_app.logger.info(f"Cancellation email sent to {user.email} for booking {booking.booking_reference}")
+        return True
+    except Exception as e:
+        current_app.logger.error(f"Failed to send cancellation email to {user.email}: {e}")
+        return False
+   ''' 
+def send_booking_cancellation_email(user, booking, flight, mail):
+    """Send a booking cancellation email to the user"""
+    msg = Message(
+        'Booking Cancellation Confirmation',
+        recipients=[user.email],
+        body=f"""Dear {user.username},
+
+Your booking for flight {flight.flight_number} from {get_airport_city(flight.origin)} to {get_airport_city(flight.destination)} scheduled for {format_datetime(flight.departure_time)} has been cancelled.
+
+Booking Reference: {booking.booking_reference}
+Status: Cancelled
+
+If you have any questions, please contact our support team at support@airwaysabc.com or call +1-800-555-1234.
+
+Thank you,
+Airways ABC Team""")
+   
+    try:
+        with current_app.app_context():
+            mail.send(msg)
+        current_app.logger.info(f"Booking cancellation email sent to {user.email} for booking {booking.booking_reference}")
+        return True
+    except Exception as e:
+        current_app.logger.error(f"Failed to send booking cancellation email to {user.email}: {e}")
+        return False

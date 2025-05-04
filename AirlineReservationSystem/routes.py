@@ -90,7 +90,7 @@ def flight_details(flight_id):
         'flight_details.html', 
         flight=flight, 
         passengers=passengers,
-       ointedget_airport_name=data.get_airport_name,
+        get_airport_name=data.get_airport_name,  # Fixed typo: was 'ointedget_airport_name'
         format_datetime=format_datetime,
         format_price=format_price
     )
@@ -384,10 +384,11 @@ def cancel_booking(booking_id):
     flight = data.get_flight_by_id(booking.flight_id)
     if flight:
         flight.seats_available += len(booking.passengers)
+        send_booking_cancellation_email(current_user, booking, flight, mail)
     
     db.session.commit()
     
-    flash('Booking cancelled successfully', 'success')
+    flash('Booking cancelled successfully. A confirmation email has been sent.', 'success')
     return redirect(url_for('my_bookings'))
 
 # User profile
@@ -596,6 +597,42 @@ def add_flight():
     
     # Render the form for GET requests
     return render_template('admin/flights.html', form=form, flights=Flight.query.all(), get_airport_name=data.get_airport_name, format_datetime=format_datetime, airports=data.airports, aircraft_types=data.aircraft_types)
+
+from utils import send_booking_cancellation_email
+
+@app.route('/admin/flights/<int:flight_id>/update_status', methods=['POST'])
+@login_required
+def update_flight_status(flight_id):
+    if not current_user.is_admin:
+        flash('Access denied', 'danger')
+        return redirect(url_for('index'))
+    
+    flight = data.get_flight_by_id(flight_id)
+    if not flight:
+        flash('Flight not found', 'danger')
+        return redirect(url_for('admin_flights'))
+    
+    new_status = request.form.get('status')
+    if new_status not in ['Scheduled', 'On Time', 'Delayed', 'Cancelled', 'Boarding', 'In Air', 'Landed', 'Completed']:
+        flash('Invalid status', 'danger')
+        return redirect(url_for('admin_flights'))
+    
+    if new_status == 'Cancelled' and flight.status != 'Cancelled':
+        # Update booking statuses and send cancellation emails
+        bookings = Booking.query.filter_by(flight_id=flight_id, status='Confirmed').all()
+        for booking in bookings:
+            booking.status = 'Cancelled'
+            user = data.get_user_by_id(booking.user_id)
+            if user:
+                send_flight_cancellation_email(user, booking, flight, mail)
+            # Refund seats to flight
+            flight.seats_available += len(booking.passengers)
+    
+    flight.status = new_status
+    db.session.commit()
+    
+    flash(f'Flight status updated to {new_status}', 'success')
+    return redirect(url_for('admin_flights'))
 
 # Admin bookings
 @app.route('/admin/bookings', methods=['GET'])
