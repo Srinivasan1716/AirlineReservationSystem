@@ -326,18 +326,18 @@ AirlineReservationSystem/
 
 ## 🔮 Future Enhancements / Roadmap
 
-| Priority | Enhancement |
-|---|---|
-| 🔴 High | Migrate from SQLite to PostgreSQL for production-grade concurrency |
-| 🔴 High | Implement JWT-based REST API for mobile client support |
-| 🟠 Medium | Add round-trip and multi-city flight search |
-| 🟠 Medium | Integrate a real-time flight status API (e.g., AviationStack) |
-| 🟠 Medium | Add PDF e-ticket generation and download |
-| 🟡 Low | Implement check-in workflow with boarding pass generation |
-| 🟡 Low | Add loyalty tier system (Silver, Gold, Platinum) based on flight segments |
-| 🟡 Low | Containerize with Docker and add CI/CD pipeline (GitHub Actions) |
-| 🟡 Low | Add rate limiting and API key authentication for public endpoints |
-| 🟡 Low | Integrate ML-based dynamic pricing based on demand and lead time |
+| Enhancement |
+|---|
+| Migrate from SQLite to PostgreSQL for production-grade concurrency |
+| Implement JWT-based REST API for mobile client support |
+| Add round-trip and multi-city flight search |
+| Integrate a real-time flight status API (e.g., AviationStack) |
+| Add PDF e-ticket generation and download |
+| Implement check-in workflow with boarding pass generation |
+| Add loyalty tier system (Silver, Gold, Platinum) based on flight segments |
+| Containerize with Docker and add CI/CD pipeline (GitHub Actions) |
+| Add rate limiting and API key authentication for public endpoints |
+| Integrate ML-based dynamic pricing based on demand and lead time |
 
 ---
 
